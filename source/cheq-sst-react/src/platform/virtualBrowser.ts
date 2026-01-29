@@ -1,0 +1,52 @@
+import type { ScreenInfo } from "../Types";
+
+export function getLanguage(): string {
+    const nav: any = (globalThis as any)?.navigator;
+    if (nav?.languages?.length) return nav.languages.join(",");
+    return nav?.language ?? "";
+}
+
+export function getTimezone(): string {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+    }
+    catch {
+        return "";
+    }
+}
+
+export function getScreenInfo(): ScreenInfo {
+    let width: number | null = null;
+    let height: number | null = null;
+    let orientation: "portrait" | "landscape" | null = null;
+
+    if (typeof window !== "undefined") {
+        width = window.innerWidth || window.screen?.width || null;
+        height = window.innerHeight || window.screen?.height || null;
+
+        if (window.matchMedia) {
+            if (window.matchMedia("(orientation: portrait)").matches) orientation = "portrait";
+            else if (window.matchMedia("(orientation: landscape)").matches) orientation = "landscape";
+        }
+    }
+
+    return { width, height, orientation };
+}
+
+export function getPageURL(): string {
+    return typeof window !== "undefined" ? window.location.href : "";
+}
+
+export function getPageTitle(): string {
+    return typeof document !== "undefined" ? document.title : "";
+}
+
+export function getReferrer(): string {
+    return typeof document !== "undefined" ? document.referrer : "";
+}
+
+export function getScreenDepth(): number | null {
+    const s: any = (globalThis as any)?.screen;
+    const depth = typeof s?.colorDepth === "number" ? s.colorDepth : typeof s?.pixelDepth === "number" ? s.pixelDepth : null;
+    return depth;
+}
