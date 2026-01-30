@@ -7,5 +7,4 @@ export { DataLayer } from "./DataLayer";
 export { Cookies, LocalStorage, SessionStorage } from "./Storage";
 
 export { HTTP } from "./HTTP";
-export { Info } from "./Info";
 export { convertToJSONString } from "./JSON";

@@ -24,9 +24,12 @@ export function getScreenInfo(): ScreenInfo {
         width = window.innerWidth || window.screen?.width || null;
         height = window.innerHeight || window.screen?.height || null;
 
-        if (window.matchMedia) {
-            if (window.matchMedia("(orientation: portrait)").matches) orientation = "portrait";
-            else if (window.matchMedia("(orientation: landscape)").matches) orientation = "landscape";
+        if (typeof window.matchMedia === "function") {
+            const portrait = window.matchMedia("(orientation: portrait)");
+            const landscape = window.matchMedia("(orientation: landscape)");
+
+            if (portrait?.matches) orientation = "portrait";
+            else if (landscape?.matches) orientation = "landscape";
         }
     }
 

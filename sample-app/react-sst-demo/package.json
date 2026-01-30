@@ -1,7 +1,7 @@
 {
   "name": "sst-react-demo",
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "./index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/react": "~19.1.10",
-    "cheq-sst-react": "workspace:*",
+    "cheq-sst-react": "file:../../source/cheq-sst-react",
     "expo": "^54.0.32",
     "expo-device": "~8.0.10",
     "expo-status-bar": "~3.0.9",
