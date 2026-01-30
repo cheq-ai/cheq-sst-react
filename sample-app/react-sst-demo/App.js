@@ -5,6 +5,7 @@ import { Sst, Config, Event } from "cheq-sst-react";
 
 export default function App() {
 	useEffect(() => {
+        console.log("useEffect");
         let cancelled = false;
 
         (async () => {
