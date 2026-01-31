@@ -6,7 +6,46 @@
  */
 
 import { UUID_KEY } from "./Info";
+
 type KV = Record<string, string>;
+function createMemoryStorage(): Storage {
+    let store: Record<string, string> = {};
+
+    return {
+        get length() {
+            return Object.keys(store).length;
+        },
+        clear() {
+            store = {};
+        },
+        getItem(key: string) {
+            return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+        },
+        key(index: number) {
+            return Object.keys(store)[index] ?? null;
+        },
+        removeItem(key: string) {
+            delete store[key];
+        },
+        setItem(key: string, value: string) {
+            store[key] = String(value);
+        },
+    };
+}
+
+function getSafeLocalStorage(): Storage {
+    if (typeof window !== "undefined" && "localStorage" in window && window.localStorage) {
+        return window.localStorage;
+    }
+    return createMemoryStorage();
+}
+
+function getSafeSessionStorage(): Storage {
+    if (typeof window !== "undefined" && "sessionStorage" in window && window.sessionStorage) {
+        return window.sessionStorage;
+    }
+    return createMemoryStorage();
+}
 
 class PrefixedStorage {
     constructor(private area: Storage, private prefix: string) {}
@@ -68,33 +107,46 @@ export class SstStorage {
 
 export class Cookies extends SstStorage {
     constructor() {
-        super(new PrefixedStorage(localStorage, "cheq.sst.storage.cookie"), "name");
+        super(new PrefixedStorage(getSafeLocalStorage(), "cheq.sst.storage.cookie"), "name");
     }
 }
 export class LocalStorage extends SstStorage {
     constructor() {
-        super(new PrefixedStorage(localStorage, "cheq.sst.storage.local"), "key");
+        super(new PrefixedStorage(getSafeLocalStorage(), "cheq.sst.storage.local"), "key");
     }
 }
 export class SessionStorage extends SstStorage {
     constructor() {
-        super(new PrefixedStorage(sessionStorage, "cheq.sst.storage.session"), "key");
+        super(new PrefixedStorage(getSafeSessionStorage(), "cheq.sst.storage.session"), "key");
     }
 }
 
-const window_exists = typeof window !== "undefined";
+function canUseLocalStorage(): boolean {
+    try {
+        if (typeof window === "undefined") return false;
+        if (!("localStorage" in window)) return false;
+
+        const testKey = "__sst_test__";
+        window.localStorage.setItem(testKey, "1");
+        window.localStorage.removeItem(testKey);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
 export function getStorageItem(key: string): string | null {
-    return window_exists ? localStorage.getItem(key) : null;
+    return canUseLocalStorage() ? localStorage.getItem(key) : null;
 }
 
 export function setStorageItem(key: string, value: string): void {
-    if (window_exists) {
+    if (canUseLocalStorage()) {
         localStorage.setItem(key, value);
     }
 }
 
 export function removeStorageItem(key: string): void {
-    if (window_exists) {
+    if (canUseLocalStorage()) {
         localStorage.removeItem(key);
     }
 }

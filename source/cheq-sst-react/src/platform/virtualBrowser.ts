@@ -7,12 +7,8 @@ export function getLanguage(): string {
 }
 
 export function getTimezone(): string {
-    try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-    }
-    catch {
-        return "";
-    }
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone ?? ""; }
+    catch { return ""; }
 }
 
 export function getScreenInfo(): ScreenInfo {
@@ -37,7 +33,8 @@ export function getScreenInfo(): ScreenInfo {
 }
 
 export function getPageURL(): string {
-    return typeof window !== "undefined" ? window.location.href : "";
+    if (typeof window === "undefined") return "";
+    return typeof window !== "undefined" ? window.location?.href : "";
 }
 
 export function getPageTitle(): string {

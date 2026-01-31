@@ -1,18 +1,31 @@
-import * as RNLocalize from "react-native-localize";
 import { Dimensions } from "react-native";
-import type { ScreenInfo } from "../Types";
+import { RNLocalize, ScreenInfo } from "../Types";
+
+function getRNLocalize(): RNLocalize | null {
+    try { return require("react-native-localize") as RNLocalize; }
+    catch { return null; }
+}
 
 export function getScreenInfo(): ScreenInfo {
     const { width, height } = Dimensions.get("window");
-    const orientation = (width && height) ? (width <= height ? "portrait" : "landscape") : null;
-    return { width, height, orientation };
+
+    const w = Math.floor(width);
+    const h = Math.floor(height);
+    const orientation = (w && h) ? (w <= h ? "portrait" : "landscape") : "unknown";
+    return { width: w, height: h, orientation };
 }
 export function getLanguage(): string {
-    const locales = RNLocalize.getLocales();
-    return locales.length ? locales[0].languageTag : "";
+    const rnLocalize = getRNLocalize();
+    if (rnLocalize) {
+        const locales = rnLocalize.getLocales();
+        return locales.length ? locales[0].languageTag : "";
+    }
+    return "";
 }
 export function getTimezone(): string {
-    return RNLocalize.getTimeZone();
+    const rnLocalize = getRNLocalize();
+    if (rnLocalize) return rnLocalize.getTimeZone();
+    return "";
 }
 export function getPageURL(): string {
     return "";

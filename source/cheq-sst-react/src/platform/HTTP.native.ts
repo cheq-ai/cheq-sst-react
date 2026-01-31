@@ -11,16 +11,16 @@ export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostA
         const uuid = getStorageItem(UUID_KEY);
         if (uuid) headers["Cookie"] = `uuid=${uuid}`;
 
-        debug("[SST] HTTP POST request", { url, headers, body: jsonString });
+        debug("Request", { url, headers, body: jsonString });
 
         const res = await fetch(url, { method: "POST", headers, body: jsonString });
         const newUuid = res.headers.get("x-offsite-uuid");
         if (newUuid) setStorageItem(UUID_KEY, newUuid);
-        debug("[SST] HTTP POST response", { status: res.status });
+        debug("Response", { status: res.status });
         return res.status;
     }
     catch (error) {
-        debug("[SST] HTTP POST failed", { url, error });
+        debug("Request failed", { url, error });
         return null;
     }
 }
@@ -30,12 +30,12 @@ export async function sendErrorBeacon({ userAgent, url, referrer }: SendErrorArg
     if (userAgent) headers["User-Agent"] = userAgent;
 
     try {
-        debug("[SST] Error beacon request", { url, headers });
+        debug("Error beacon", { url, headers });
         await fetch(url, { method: "GET", headers });
         return true;
     }
     catch (error) {
-        debug("[SST] Error beacon failed", { url, error });
+        debug("Error beacon failed", { url, error });
         return false;
     }
 }

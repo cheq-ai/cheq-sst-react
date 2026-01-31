@@ -14,7 +14,7 @@ export default function App() {
 
             await Sst.trackEvent(new Event("page_view", {
                 data: { route: "/home" },
-                parameters: { rid: "-1" }
+                parameters: { cw_test: "abc" }
             }));
         })();
 

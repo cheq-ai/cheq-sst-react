@@ -12,7 +12,7 @@ const SST_VERSION = "1.0.0";
 const SST_ORIGIN = "mobile";
 let cachedEnv: CachedEnv | null = null;
 
-if (typeof window !== "undefined") {
+if ((typeof window !== "undefined") && (typeof window.addEventListener === "function")) {
     // update cache on screen resize
     window.addEventListener("resize", () => {
         cachedEnv = null;
@@ -121,11 +121,11 @@ export const Sst = (() => {
                 new URL(`https://${next.domain}/pc/${next.clientName}/sst`);
             }
             catch {
-                if (next.debug) console.error("CHEQ SST not configured, invalid domain or client");
+                if (next.debug) console.error("Not configured, invalid domain or client");
                 return;
             }
             config = next;
-            debug("CHEQ SST configured");
+            debug("Configured");
         },
 
         getCheqUuid() {
@@ -137,89 +137,94 @@ export const Sst = (() => {
         },
 
         async trackEvent(event: Event): Promise<TrackEventResult | null> {
-            if (!config) return null;
-
-            await ensureUserAgent();
-
-            const eData: Record<string, any> = { ...event.data };
-            if (eData.__timestamp == null) eData.__timestamp = config.dateProvider.now().getTime();
-
-            const env = getCachedEnv(config.screenEnabled);
-            const screen = env.screen;
-            const language = env.language;
-            const timezone = env.timezone;
-            const screen_depth = env.screenDepth;
-
-            const page_url = getPageURL();
-            const page_title = getPageTitle();
-            const referrer = getReferrer();
-
-            const virtualBrowser: Record<string, any> = { height: screen.height, width: screen.width };
-            if (screen_depth) virtualBrowser.screenDepth = screen_depth;
-            if (page_url) virtualBrowser.page = page_url;
-            if (page_title) virtualBrowser.title = page_title;
-            if (referrer) virtualBrowser.referrer = referrer;
-            if (language) virtualBrowser.language = language;
-            if (timezone) virtualBrowser.timezone = timezone;
-            if (config.virtualBrowser.page) virtualBrowser.page = config.virtualBrowser.page;
-
-            const __mobileData = await getMobileData(config);
-            const dataLayer_key = config.dataLayerName;
-            const dataLayer_value = await dataLayer.all();
-            let is_empty_dataLayer = false;
-            if (!dataLayer_value) {
-                is_empty_dataLayer = true;
-            }
-            else if (Array.isArray(dataLayer_value) && (dataLayer_value.length === 0)) {
-                is_empty_dataLayer = true;
-            }
-            else if ((typeof dataLayer_value === 'object') && (Object.keys(dataLayer_value).length === 0)) {
-                is_empty_dataLayer = true;
-            }
-
-            const sstData: Record<string, any> = {};
-            
-            // settings
-            sstData.settings = { publishPath: config.publishPath, nexusHost: config.nexusHost };
-
-            // dataLayer
-            sstData.dataLayer = {};
-            if (__mobileData && (Object.keys(__mobileData).length > 0)) sstData.dataLayer.__mobileData = __mobileData;
-            if (dataLayer_key && !is_empty_dataLayer) sstData.dataLayer[dataLayer_key] = dataLayer_value;
-
-            // events
-            sstData.events = [{ name: event.name, data: eData }];
-
-            // virtualBrowser
-            sstData.virtualBrowser = virtualBrowser;
-
-            // storage
-            const storage = storagePayload();
-            if (storage) sstData.storage = storage;
-
-            // cleanup
-            if (Object.keys(sstData.dataLayer).length === 0) delete sstData.dataLayer;
-
-            let jsonString: string;
             try {
-                jsonString = JSON.stringify(sstData);
-            } catch (e: any) {
-                await sendError(String(e?.message ?? e), "Sst.trackEvent", "SerializationError");
-                return null;
+                if (!config) return null;
+
+                await ensureUserAgent();
+                const eData: Record<string, any> = { ...event.data };
+                if (eData.__timestamp == null) eData.__timestamp = config.dateProvider.now().getTime();
+
+                const env = getCachedEnv(config.screenEnabled);
+                const screen = env.screen;
+                const language = env.language;
+                const timezone = env.timezone;
+                const screen_depth = env.screenDepth;
+
+                const page_url = getPageURL();
+                const page_title = getPageTitle();
+                const referrer = getReferrer();
+
+                const virtualBrowser: Record<string, any> = { height: screen.height, width: screen.width };
+                if (screen_depth) virtualBrowser.screenDepth = screen_depth;
+                if (page_url) virtualBrowser.page = page_url;
+                if (page_title) virtualBrowser.title = page_title;
+                if (referrer) virtualBrowser.referrer = referrer;
+                if (language) virtualBrowser.language = language;
+                if (timezone) virtualBrowser.timezone = timezone;
+                if (config.virtualBrowser.page) virtualBrowser.page = config.virtualBrowser.page;
+
+                const __mobileData = await getMobileData(config);
+                const dataLayer_key = config.dataLayerName;
+                const dataLayer_value = await dataLayer.all();
+                let is_empty_dataLayer = false;
+                if (!dataLayer_value) {
+                    is_empty_dataLayer = true;
+                }
+                else if (Array.isArray(dataLayer_value) && (dataLayer_value.length === 0)) {
+                    is_empty_dataLayer = true;
+                }
+                else if ((typeof dataLayer_value === 'object') && (Object.keys(dataLayer_value).length === 0)) {
+                    is_empty_dataLayer = true;
+                }
+
+                const sstData: Record<string, any> = {};
+                
+                // settings
+                sstData.settings = { publishPath: config.publishPath, nexusHost: config.nexusHost };
+
+                // dataLayer
+                sstData.dataLayer = {};
+                if (__mobileData && (Object.keys(__mobileData).length > 0)) sstData.dataLayer.__mobileData = __mobileData;
+                if (dataLayer_key && !is_empty_dataLayer) sstData.dataLayer[dataLayer_key] = dataLayer_value;
+
+                // events
+                sstData.events = [{ name: event.name, data: eData }];
+
+                // virtualBrowser
+                sstData.virtualBrowser = virtualBrowser;
+
+                // storage
+                const storage = storagePayload();
+                if (storage) sstData.storage = storage;
+
+                // cleanup
+                if (Object.keys(sstData.dataLayer).length === 0) delete sstData.dataLayer;
+
+                let jsonString: string;
+                try {
+                    jsonString = JSON.stringify(sstData);
+                } catch (e: any) {
+                    await sendError(String(e?.message ?? e), "Sst.trackEvent", "SerializationError");
+                    return null;
+                }
+
+                const url = buildSstUrl(config.domain, config.clientName, event.parameters);
+
+                try {
+                    const statusCode = await sendHttpPost({
+                        userAgent: getUA(),
+                        url,
+                        jsonString,
+                        debug: config.debug,
+                    });
+                    return { url, requestBody: jsonString, statusCode, userAgent: getUA() };
+                } catch (e: any) {
+                    await sendError(String(e?.message ?? e), "Sst.trackEvent", "NetworkError");
+                    return null;
+                }
             }
-
-            const url = buildSstUrl(config.domain, config.clientName, event.parameters);
-
-            try {
-                const statusCode = await sendHttpPost({
-                    userAgent: getUA(),
-                    url,
-                    jsonString,
-                    debug: config.debug,
-                });
-                return { url, requestBody: jsonString, statusCode, userAgent: getUA() };
-            } catch (e: any) {
-                await sendError(String(e?.message ?? e), "Sst.trackEvent", "NetworkError");
+            catch(err) {
+                debug("trackEvent error", err);
                 return null;
             }
         },

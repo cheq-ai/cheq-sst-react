@@ -11,16 +11,17 @@
     ],
     "sideEffects": false,
     "scripts": {
-        "build": "npx tsup src/index.ts --format esm,cjs --dts --clean",
-        "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+        "build": "npx tsup",
+        "dev": "npx tsup --watch",
         "prepare": "npm run build"
     },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "react-native": "./dist/index.js",
+            "react-native": "./dist/index.native.js",
             "import": "./dist/index.js",
-            "require": "./dist/index.cjs"
+            "require": "./dist/index.cjs",
+            "default": "./dist/index.js"
         }
     },
     "peerDependencies": {

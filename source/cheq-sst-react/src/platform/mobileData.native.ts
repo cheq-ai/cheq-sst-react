@@ -1,13 +1,18 @@
 import { Dimensions, Platform } from "react-native";
-import DeviceInfo from "react-native-device-info";
 import * as TrackingTransparency from "expo-tracking-transparency";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "../Info";
 import type { Config } from "../Types";
+import { getScreenInfo } from "./virtualBrowser"
 
 const OS_NAME_MAP: Record<string, string> = {
     android: "Android",
     ios: "iOS"
 };
+
+function getDeviceInfo() {
+    try { return require("react-native-device-info") as typeof import("react-native-device-info"); }
+    catch { return null; }
+}
 
 function getOSName(): string {
     return OS_NAME_MAP[Platform.OS] || Platform.OS;
@@ -48,21 +53,18 @@ export async function getMobileData(config: Config) {
     const advertising_authorized = advertising_enabled ? await getAdvertisingAuthorization() : null;
     const advertising_id = advertising_authorized ? await getAdvertisingId() : null;
 
-    const app_name = DeviceInfo.getApplicationName();
-    const app_version = DeviceInfo.getVersion();
-    const app_build = DeviceInfo.getBuildNumber();
-    const app_namespace = DeviceInfo.getBundleId();
+    const deviceInfo = getDeviceInfo();
+    const app_name = deviceInfo?.getApplicationName?.() ?? "";
+    const app_version = deviceInfo?.getVersion?.() ?? "";
+    const app_build = deviceInfo?.getBuildNumber?.() ?? "";
+    const app_namespace = deviceInfo?.getBundleId?.() ?? "";
 
-    const device_manufacturer = await DeviceInfo.getManufacturer();
-    const device_supported_abis = DeviceInfo.supportedAbis ? await DeviceInfo.supportedAbis() : [];
-    const device_architecture = device_supported_abis.length ? device_supported_abis[0] : "unknown";
-    const device_model = DeviceInfo.getModel();
+    const device_manufacturer = await deviceInfo?.getManufacturer?.() ?? "";
+    const device_supported_abis = typeof deviceInfo?.supportedAbis === "function"? await deviceInfo.supportedAbis() : [];
+    const device_architecture = device_supported_abis.length > 0 ? device_supported_abis[0] : "unknown";
+    const device_model = deviceInfo?.getModel();
 
-    const { width, height } = Dimensions.get("window");
-    const device_screen_width = width ? Math.round(width) : 0;
-    const device_screen_height = height ? Math.round(height) : 0;
-    const device_screen_orientation = getOrientation(device_screen_width, device_screen_height);
-
+    const screen_info = getScreenInfo();
     const device_os_name = getOSName();
     const device_os_version = String(Platform.Version ?? "unknown");
 
@@ -84,9 +86,9 @@ export async function getMobileData(config: Config) {
             model: device_model || "unknown",
             architecture: device_architecture || "unknown",
             screen: {
-                width: device_screen_width,
-                height: device_screen_height,
-                orientation: device_screen_orientation
+                width: screen_info.width,
+                height: screen_info.height,
+                orientation: screen_info.orientation
             },
             os: {
                 name: device_os_name || "unknown",

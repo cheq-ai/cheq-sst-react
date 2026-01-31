@@ -31,14 +31,14 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<void> {
     if (signal) fetchOptions.signal = signal;
 
     try {
-        debug("[SST] fetch POST request", { url });
+        debug("Send fetch request", { url });
         const res = await fetch(url, fetchOptions);
-        debug("[SST] fetch POST response", { status: res.status });
+        debug("Fetch response", { status: res.status });
         if (!res.ok) onFailedRequest?.({ name: "SST request error response", body: parsedBody });
     }
     catch (error) {
         const name = (error as { name?: string } | null)?.name === "TimeoutError" ? "SST request timeout" : "SST request failed";
-        debug("[SST] fetch POST failed", { url, error });
+        debug("Fetch request failed", { url, error });
         onFailedRequest?.({ name, body: parsedBody, error });
     }
 }
@@ -53,10 +53,10 @@ function sendBeaconJson(url: string, jsonString: string): boolean {
 
 export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | null> {
     const { url, jsonString } = args;
-    debug("[SST] sendHttpPost(web)", { url });
+    debug("sendHttpPost (web)", { url });
     const beaconOk = sendBeaconJson(url, jsonString);
     if (beaconOk) {
-        debug("[SST] sendBeacon queued");
+        debug("sendBeacon queued");
         // sendBeacon doesn't give status codes; we treat “queued” as success.
         return 204;
     }
@@ -67,12 +67,12 @@ export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | nul
 
 export function sendErrorBeacon({ url }: SendErrorArgs): boolean {
     try {
-        debug("[SST] sendError(web)", { url });
+        debug("sendErrorBeacon (web)", { url });
         new Image().src = url;
         return true;
     }
     catch (error) {
-        debug("[SST] sendError(web) failed", { url, error });
+        debug("sendErrorBeacon(web) failed", { url, error });
         return false;
     }
 }
