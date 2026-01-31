@@ -6,19 +6,21 @@
     "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "react-native": "./dist/index.js",
-    "files": ["dist"],
+    "files": [
+        "dist"
+    ],
     "sideEffects": false,
     "scripts": {
-        "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+        "build": "npx tsup src/index.ts --format esm,cjs --dts --clean",
         "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
         "prepare": "npm run build"
     },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
+            "react-native": "./dist/index.js",
             "import": "./dist/index.js",
-            "require": "./dist/index.cjs",
-            "react-native": "./dist/index.js"
+            "require": "./dist/index.cjs"
         }
     },
     "peerDependencies": {

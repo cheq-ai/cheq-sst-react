@@ -4,6 +4,8 @@
  * - LocalStorage: → localStorage with a prefix
  * - SessionStorage: → sessionStorage with a prefix
  */
+
+import { UUID_KEY } from "./Info";
 type KV = Record<string, string>;
 
 class PrefixedStorage {
@@ -78,4 +80,28 @@ export class SessionStorage extends SstStorage {
     constructor() {
         super(new PrefixedStorage(sessionStorage, "cheq.sst.storage.session"), "key");
     }
+}
+
+const window_exists = typeof window !== "undefined";
+export function getStorageItem(key: string): string | null {
+    return window_exists ? localStorage.getItem(key) : null;
+}
+
+export function setStorageItem(key: string, value: string): void {
+    if (window_exists) {
+        localStorage.setItem(key, value);
+    }
+}
+
+export function removeStorageItem(key: string): void {
+    if (window_exists) {
+        localStorage.removeItem(key);
+    }
+}
+export function getUUID() {
+    return getStorageItem(UUID_KEY);
+}
+
+export function clearUUID() {
+    return removeStorageItem(UUID_KEY);
 }

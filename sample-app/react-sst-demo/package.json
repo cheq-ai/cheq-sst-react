@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.6",
-    "@react-native-community/cli": "latest",
+    "@react-native-community/cli": "^14.0.1",
     "@react-native/metro-config": "^0.83.1"
   },
   "private": true

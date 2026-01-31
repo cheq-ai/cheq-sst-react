@@ -6,5 +6,4 @@ export { Event } from "./Models";
 export { DataLayer } from "./DataLayer";
 export { Cookies, LocalStorage, SessionStorage } from "./Storage";
 
-export { HTTP } from "./HTTP";
 export { convertToJSONString } from "./JSON";

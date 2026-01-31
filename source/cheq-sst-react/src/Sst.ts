@@ -1,11 +1,12 @@
 import { CachedEnv, Config, SstError, TrackEventResult } from "./Types";
 import { Event } from "./Models";
 import { DataLayer } from "./DataLayer";
-import { Cookies, LocalStorage, SessionStorage } from "./Storage";
-import { HTTP } from "./HTTP";
+import { Cookies, LocalStorage, SessionStorage, clearUUID, getUUID } from "./Storage";
+import { sendHttpPost, sendErrorBeacon } from "./platform/HTTP";
 import { getPlatform } from "./platform/env";
 import { getLanguage, getPageTitle, getPageURL, getReferrer, getScreenInfo, getScreenDepth, getTimezone } from "./platform/virtualBrowser";
 import { getMobileData } from "./platform/mobileData"
+import { debug, setDebug } from "./utils/logger";
 
 const SST_VERSION = "1.0.0";
 const SST_ORIGIN = "mobile";
@@ -105,7 +106,7 @@ export const Sst = (() => {
         });
 
         const referrer = buildSstUrl(config.domain, config.clientName, {});
-        return HTTP.sendError({ userAgent: getUA(), url, referrer });
+        return sendErrorBeacon({ userAgent: getUA(), url, referrer });
     }
 
     return {
@@ -115,23 +116,24 @@ export const Sst = (() => {
         sessionStorage: sessionStorageStore,
 
         configure(next: Config) {
-            // validate like Swift does
+            setDebug(Boolean(next.debug));
             try {
                 new URL(`https://${next.domain}/pc/${next.clientName}/sst`);
-            } catch {
+            }
+            catch {
                 if (next.debug) console.error("CHEQ SST not configured, invalid domain or client");
                 return;
             }
             config = next;
-            if (config.debug) console.info("CHEQ SST configured");
+            debug("CHEQ SST configured");
         },
 
         getCheqUuid() {
-            return HTTP.getUUID();
+            return getUUID();
         },
 
         clearCheqUuid() {
-            HTTP.clearUUID();
+            clearUUID();
         },
 
         async trackEvent(event: Event): Promise<TrackEventResult | null> {
@@ -209,7 +211,7 @@ export const Sst = (() => {
             const url = buildSstUrl(config.domain, config.clientName, event.parameters);
 
             try {
-                const statusCode = await HTTP.sendHttpPost({
+                const statusCode = await sendHttpPost({
                     userAgent: getUA(),
                     url,
                     jsonString,

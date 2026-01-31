@@ -134,3 +134,19 @@ export type CachedEnv = {
     screen: { width: number | null; height: number | null };
     screenDepth: number | null;
 };
+
+export type SendHttpPostArgs = {
+    userAgent?: string | null;
+    url: string;
+    debug?: boolean;
+    jsonString: string;
+    timeoutMs?: number;
+    onFailedRequest?: (args: { name: string; body: unknown; error?: unknown }) => void;
+};
+
+export type SendErrorArgs = {
+    userAgent?: string | null;
+    url: string;
+    referrer: string;
+    debug?: boolean;
+};
