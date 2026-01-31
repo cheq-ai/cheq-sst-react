@@ -116,16 +116,21 @@ export const Sst = (() => {
         sessionStorage: sessionStorageStore,
 
         configure(next: Config) {
-            setDebug(Boolean(next.debug));
             try {
-                new URL(`https://${next.domain}/pc/${next.clientName}/sst`);
+                setDebug(Boolean(next.debug));
+                try {
+                    new URL(`https://${next.domain}/pc/${next.clientName}/sst`);
+                }
+                catch {
+                    if (next.debug) console.error("Not configured, invalid domain or client");
+                    return;
+                }
+                config = next;
+                debug("Configured");
             }
-            catch {
-                if (next.debug) console.error("Not configured, invalid domain or client");
-                return;
+            catch(err) {
+                debug("Configuration error", err);
             }
-            config = next;
-            debug("Configured");
         },
 
         getCheqUuid() {

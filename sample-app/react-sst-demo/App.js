@@ -1,14 +1,17 @@
 import React, {useEffect, useState} from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { Sst, Config, Event } from "cheq-sst-react";
+import { CheqAdvertisingModel, Config, Event, Models, Sst } from "cheq-sst-react";
 
 export default function App() {
 	useEffect(() => {
         let cancelled = false;
 
         (async () => {
-            Sst.configure(new Config("demoretail", { debug: true }));
+            Sst.configure(new Config("demoretail", {
+                models: Models.default().add(new CheqAdvertisingModel()),
+                debug: true
+            }));
 
             if (cancelled) return;
 

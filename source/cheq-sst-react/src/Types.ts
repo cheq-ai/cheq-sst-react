@@ -150,3 +150,8 @@ export type SendErrorArgs = {
     referrer: string;
     debug?: boolean;
 };
+
+export type RNLocalize = {
+    getLocales: () => Array<{ languageTag: string }>;
+    getTimeZone: () => string;
+};

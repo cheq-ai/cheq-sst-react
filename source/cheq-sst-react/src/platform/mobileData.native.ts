@@ -1,8 +1,8 @@
-import { Dimensions, Platform } from "react-native";
-import * as TrackingTransparency from "expo-tracking-transparency";
+import { NativeModules, Platform } from "react-native";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "../Info";
 import type { Config } from "../Types";
 import { getScreenInfo } from "./virtualBrowser"
+import { debug } from "../utils/logger"
 
 const OS_NAME_MAP: Record<string, string> = {
     android: "Android",
@@ -18,42 +18,90 @@ function getOSName(): string {
     return OS_NAME_MAP[Platform.OS] || Platform.OS;
 }
 
-function getOrientation(width: number, height: number): "Portrait" | "Landscape" {
-    return height >= width ? "Portrait" : "Landscape";
+function getRNAdvertisingId() {
+    try { return require("react-native-advertising-id") as any; }
+    catch { return null; }
+}
+
+function getExpoTrackingTransparency() {
+    try { return require("expo-tracking-transparency") as typeof import("expo-tracking-transparency"); }
+    catch { return null; }
 }
 
 let cachedATT: boolean | null = null;
 async function getAdvertisingAuthorization(): Promise<boolean> {
     try {
+        debug(`getAdvertisingAuthorization: platform: ${Platform.OS}`);
         if (Platform.OS !== "ios") return true;
         if (cachedATT !== null) return cachedATT;
 
-        const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
-        cachedATT = status === "granted";
-        return cachedATT;
+        // React native check
+        const rnAtt = getRNAdvertisingId(); // some libs include ATT helpers; if not, treat as not authorized
+        if (rnAtt?.requestTrackingPermission) {
+            const status = await rnAtt.requestTrackingPermission();
+            cachedATT = status === "authorized" || status === "granted";
+            return cachedATT;
+        }
+
+        // Expo check
+        const expoTT = getExpoTrackingTransparency();
+        if (expoTT?.requestTrackingPermissionsAsync) {
+            const { status } = await expoTT.requestTrackingPermissionsAsync();
+            cachedATT = status === "granted";
+            return cachedATT;
+        }
+
+        cachedATT = false;
+        return false;
     }
-    catch(err) {
+    catch {
         cachedATT = false;
         return false;
     }
 }
 
+export async function getAndroidAdId() {
+    const response = await NativeModules.AdvertisingId.getAdvertisingId();
+    return response?.advertisingId;
+}
+
 async function getAdvertisingId(): Promise<string | null> {
+    // React native
     try {
-        const id = await TrackingTransparency.getAdvertisingId();
-        return id || null;
+        if (Platform.OS === "android") return await getAndroidAdId();
+
+        const rnAdIdMod = getRNAdvertisingId();
+        const getter = rnAdIdMod?.default?.getAdvertisingId ?? rnAdIdMod?.getAdvertisingId;
+        if (typeof getter === "function") {
+            const res = await getter();
+            if (typeof res === "string") return res || null;
+            return res?.advertisingId || null;
+        }
     }
-    catch(err) {
-        return null;
-    }
+    catch {}
+
+    // Expo
+    try {
+        const expoTT = getExpoTrackingTransparency();
+        if (expoTT?.getAdvertisingId) {
+            const id = await expoTT.getAdvertisingId();
+            return id || null;
+        }
+    } catch {}
+
+    return null;
 }
 
 export async function getMobileData(config: Config) {
     const advertising_enabled = config.models.hasAdvertising();
     const advertising_authorized = advertising_enabled ? await getAdvertisingAuthorization() : null;
+    debug(`advertising_authorized: ${advertising_authorized}`);
+    
     const advertising_id = advertising_authorized ? await getAdvertisingId() : null;
+    debug(`advertising_id: ${advertising_id}`);
 
     const deviceInfo = getDeviceInfo();
+
     const app_name = deviceInfo?.getApplicationName?.() ?? "";
     const app_version = deviceInfo?.getVersion?.() ?? "";
     const app_build = deviceInfo?.getBuildNumber?.() ?? "";
