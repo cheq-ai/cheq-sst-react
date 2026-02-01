@@ -72,5 +72,7 @@
     <string>Light</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>We use this to prevent fraud and abuse.</string>
   </dict>
 </plist>

@@ -14,9 +14,9 @@
         "clean": "npm run clean:root && npm run clean:demo && npm run clean:src && npm run clean:dist",
         "build": "npm -w source/cheq-sst-react run build",
         "start": "npm run build && npm --prefix sample-app/react-sst-demo run start",
-        "start:android": "npm run build && npm --prefix sample-app/react-sst-demo run start --android",
-        "start:ios": "npm run build && npm --prefix sample-app/react-sst-demo run start --ios",
-        "start:web": "npm run build && npm --prefix sample-app/react-sst-demo run start --web"
+        "start:android": "npm run build && npm --prefix sample-app/react-sst-demo run android",
+        "start:ios": "npm run build && npm --prefix sample-app/react-sst-demo run ios",
+        "start:web": "npm run build && npm --prefix sample-app/react-sst-demo run web"
     },
     "overrides": {
         "react": "19.1.0",
