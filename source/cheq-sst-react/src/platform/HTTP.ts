@@ -1,9 +1,8 @@
 import type { SendHttpPostArgs, SendErrorArgs } from "../Types"
-import { debug } from "../utils/logger";
+import { debug, debug_request, debug_response } from "../utils/logger";
 
 function safeParseJson(jsonString: string): unknown {
-    try { return JSON.parse(jsonString);
-    }
+    try { return JSON.parse(jsonString); }
     catch { return null; }
 }
 
@@ -31,9 +30,15 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<void> {
     if (signal) fetchOptions.signal = signal;
 
     try {
-        debug("Send fetch request", { url });
+        debug_request(url, {
+            method: fetchOptions.method,
+            headers: fetchOptions.headers,
+            body: jsonString
+        });
+
         const res = await fetch(url, fetchOptions);
-        debug("Fetch response", { status: res.status });
+        debug_response(res);
+
         if (!res.ok) onFailedRequest?.({ name: "SST request error response", body: parsedBody });
     }
     catch (error) {
@@ -48,12 +53,15 @@ function sendBeaconJson(url: string, jsonString: string): boolean {
         return false;
     }
 
+    debug_request(url, {
+        method: "POST",
+        body: jsonString
+    });
     return navigator.sendBeacon(url, jsonString);
 }
 
 export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | null> {
     const { url, jsonString } = args;
-    debug("sendHttpPost (web)", { url });
     const beaconOk = sendBeaconJson(url, jsonString);
     if (beaconOk) {
         debug("sendBeacon queued");
@@ -67,7 +75,7 @@ export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | nul
 
 export function sendErrorBeacon({ url }: SendErrorArgs): boolean {
     try {
-        debug("sendErrorBeacon (web)", { url });
+        debug_request(url, { method: "GET" });
         new Image().src = url;
         return true;
     }

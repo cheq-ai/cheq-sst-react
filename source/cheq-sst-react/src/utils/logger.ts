@@ -53,3 +53,52 @@ export function debug(message: string, ...args: unknown[]) {
         catch {}
     }
 }
+
+export function debug_request(url: string, options: RequestInit = {}): void {
+    debug("--- REQUEST ---");
+    debug(`\tURL: ${url}`);
+    debug(`\tMethod: ${options.method ?? ""}`);
+
+    if (options.headers) {
+        debug("Request Headers:");
+        const headers = options.headers instanceof Headers ? Object.fromEntries(options.headers.entries()) : options.headers;
+
+        Object.entries(headers).forEach(([key, value]) => {
+            debug(`\t${key}: ${String(value)}`);
+        });
+    }
+
+    if (options.body) {
+        debug("Request Body:");
+        try {
+            debug(typeof options.body === "string" ? options.body : JSON.stringify(options.body));
+        }
+        catch {
+            debug("\t<unserializable body>");
+        }
+    }
+};
+
+export async function debug_response(response: Response): Promise<void> {
+    debug("--- RESPONSE ---");
+    debug(`\tStatus Code: ${response.status}`);
+
+    // Headers
+    debug("Response Headers:");
+    Object.entries(Object.fromEntries(response.headers.entries())).forEach(([key, value]) => {
+        debug(`\t${key}: ${value}`);
+    });
+
+    // Body (only if not 204)
+    if (response.status !== 204) {
+        debug("Response Body:");
+
+        try {
+            const text = await response.text();
+            debug(text || "<empty body>");
+        }
+        catch {
+            debug("\t<unreadable body>");
+        }
+    }
+}

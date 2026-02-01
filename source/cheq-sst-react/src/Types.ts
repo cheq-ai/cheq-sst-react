@@ -155,3 +155,5 @@ export type RNLocalize = {
     getLocales: () => Array<{ languageTag: string }>;
     getTimeZone: () => string;
 };
+
+export type ATTStatus = "authorized" | "denied" | "restricted" | "notDetermined" | "unavailable";

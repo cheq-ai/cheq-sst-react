@@ -1,6 +1,6 @@
 import { NativeModules, Platform } from "react-native";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "../Info";
-import type { Config } from "../Types";
+import type { Config, ATTStatus } from "../Types";
 import { getScreenInfo } from "./virtualBrowser"
 import { debug } from "../utils/logger"
 
@@ -28,38 +28,106 @@ function getNativeAdvertisingModule() {
     catch { return null; }
 }
 
-let cachedATT: boolean | null = null;
-async function getAdvertisingAuthorization(): Promise<boolean> {
-    try {
-        debug(`getAdvertisingAuthorization: platform: ${Platform.OS}`);
-        if (Platform.OS !== "ios") return true;
-        if (cachedATT !== null) return cachedATT;
-
-        // Expo check
-        const expoTT = getExpoTrackingTransparency();
-        if (expoTT?.requestTrackingPermissionsAsync) {
-            const { status } = await expoTT.requestTrackingPermissionsAsync();
-            cachedATT = status === "granted";
-            return cachedATT;
-        }
-
-        // Non-expo fallback
-        const nativeAd = getNativeAdvertisingModule();
-        if (nativeAd?.getAdvertisingId) {
-            cachedATT = true;
-            return true;
-        }
-
-        cachedATT = false;
-        return false;
-    }
-    catch {
-        cachedATT = false;
-        return false;
-    }
+function getRNTrackingTransparency() {
+    try { return require("react-native-tracking-transparency") as Record<string, unknown>; }
+    catch { return null; }
 }
 
-async function getAdvertisingId(): Promise<string | null> {
+function normalizeATTStatus(status: unknown): ATTStatus {
+    if (status === "authorized" || status === "denied" || status === "restricted" || status === "notDetermined") {
+        return status;
+    }
+
+    // Some libs return: "granted" | "denied" | "unavailable" | "not-determined"/etc.
+    if (status === "granted") return "authorized";
+    if (status === "not-determined" || status === "undetermined") return "notDetermined";
+    if (status === "unavailable") return "unavailable";
+
+    return "unavailable";
+}
+
+function normalizeAbi(abi: string | undefined | null): string {
+    if (!abi) return "unknown";
+
+    const a = abi.toLowerCase();
+    if (a.includes("arm64")) return "arm64";
+    if (a.includes("x86_64")) return "x86_64";
+    if (a.includes("x86")) return "x86";
+    if (a.includes("armeabi")) return "arm";
+    return a;
+}
+
+async function getDeviceId(deviceInfo: any) {
+    let device_id_raw: unknown;
+    if (typeof deviceInfo?.getUniqueIdSync === "function") {
+        device_id_raw = deviceInfo.getUniqueIdSync();
+    }
+    else if (typeof deviceInfo?.getUniqueId === "function") {
+        device_id_raw = await deviceInfo.getUniqueId();
+    }
+    else {
+        device_id_raw = null;
+    }
+
+    const device_id = typeof device_id_raw === "string" ? device_id_raw : "unknown";
+    return device_id;
+}
+
+export async function getTrackingAuthorizationStatus(): Promise<ATTStatus> {
+    if (Platform.OS !== "ios") return "authorized";
+
+    // Expo read
+    const expoTT = getExpoTrackingTransparency();
+    if (expoTT?.getTrackingPermissionsAsync) {
+        const res = await expoTT.getTrackingPermissionsAsync();
+        return normalizeATTStatus(res.status);
+    }
+
+    // RN lib read (try common names)
+    const rnTT = getRNTrackingTransparency();
+    const getStatus = (rnTT?.getTrackingStatus as unknown) ?? (rnTT?.getTrackingAuthorizationStatus as unknown) ?? (rnTT?.getTrackingPermissionStatus as unknown);
+
+    if (typeof getStatus === "function") {
+        const status = await (getStatus as () => Promise<unknown>)();
+        return normalizeATTStatus(status);
+    }
+
+    return "unavailable";
+}
+
+let cachedATT: boolean | null = null;
+export async function getAdvertisingAuthorization(): Promise<boolean> {
+    if (Platform.OS !== "ios") return true;
+    if (cachedATT !== null) return cachedATT;
+
+    // Expo prompt
+    const expoTT = getExpoTrackingTransparency();
+    if (expoTT?.requestTrackingPermissionsAsync) {
+        const res = await expoTT.requestTrackingPermissionsAsync();
+        cachedATT = normalizeATTStatus(res.status) === "authorized";
+        return cachedATT;
+    }
+
+    // RN lib prompt (try common names)
+    const rnTT = getRNTrackingTransparency();
+    const request =
+        (rnTT?.requestTrackingPermission as unknown) ??
+        (rnTT?.requestTrackingAuthorization as unknown) ??
+        (rnTT?.requestTrackingPermissions as unknown);
+
+    if (typeof request === "function") {
+        const status = await (request as () => Promise<unknown>)();
+        cachedATT = normalizeATTStatus(status) === "authorized";
+        return cachedATT;
+    }
+
+    // Fallback to current status if we can't prompt
+    const status = await getTrackingAuthorizationStatus();
+    cachedATT = status === "authorized";
+    return cachedATT;
+}
+
+export async function getAdvertisingId(): Promise<string | null> {
     // React native
     try {
         if (Platform.OS === "android" || Platform.OS === "ios") {
@@ -87,9 +155,12 @@ async function getAdvertisingId(): Promise<string | null> {
 export async function getMobileData(config: Config) {
     try {
         const advertising_enabled = config.models.hasAdvertising();
-        const advertising_authorized = advertising_enabled ? await getAdvertisingAuthorization() : null;
+        const att_status = advertising_enabled ? await getTrackingAuthorizationStatus() : null;
+        const advertising_authorized = att_status === "authorized";
+
+        debug(`att_status: ${att_status}`);
         debug(`advertising_authorized: ${advertising_authorized}`);
-        
+
         const advertising_id = advertising_authorized ? await getAdvertisingId() : null;
         debug(`advertising_id: ${advertising_id}`);
 
@@ -102,8 +173,10 @@ export async function getMobileData(config: Config) {
 
         const device_manufacturer = await deviceInfo?.getManufacturer?.() ?? "";
         const device_supported_abis = typeof deviceInfo?.supportedAbis === "function"? await deviceInfo.supportedAbis() : [];
-        const device_architecture = device_supported_abis.length > 0 ? device_supported_abis[0] : "unknown";
+        const device_architecture = device_supported_abis.length > 0 ? normalizeAbi(device_supported_abis[0]) : "unknown";
+
         const device_model = deviceInfo?.getModel();
+        const device_id = await getDeviceId(deviceInfo);
 
         const screen_info = getScreenInfo();
         const device_os_name = getOSName();
@@ -121,11 +194,11 @@ export async function getMobileData(config: Config) {
                 build: app_build || "unknown",
                 namespace: app_namespace || "unknown"
             },
-
             device: {
                 manufacturer: (device_manufacturer || "unknown").toLowerCase(),
                 model: device_model || "unknown",
                 architecture: device_architecture || "unknown",
+                id: device_id || "unknown",
                 screen: {
                     width: screen_info.width,
                     height: screen_info.height,

@@ -114,7 +114,7 @@ export const Sst = (() => {
         cookies,
         localStorage: localStorageStore,
         sessionStorage: sessionStorageStore,
-
+        sendError: sendError,
         configure(next: Config) {
             try {
                 setDebug(Boolean(next.debug));

@@ -1,7 +1,7 @@
 import { getStorageItem, setStorageItem } from "../Storage";
 import { UUID_KEY } from "../Info";
 import type { SendHttpPostArgs, SendErrorArgs } from "../Types"
-import { debug } from "../utils/logger";
+import { debug, debug_request, debug_response } from "../utils/logger";
 
 export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostArgs): Promise<number | null> {
     try {
@@ -11,12 +11,17 @@ export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostA
         const uuid = getStorageItem(UUID_KEY);
         if (uuid) headers["Cookie"] = `uuid=${uuid}`;
 
-        debug("Request", { url, headers, body: jsonString });
+        debug_request(url, {
+            method: "POST",
+            headers,
+            body: jsonString
+        });
 
         const res = await fetch(url, { method: "POST", headers, body: jsonString });
         const newUuid = res.headers.get("x-offsite-uuid");
         if (newUuid) setStorageItem(UUID_KEY, newUuid);
-        debug("Response", { status: res.status });
+
+        debug_response(res);
         return res.status;
     }
     catch (error) {
