@@ -1,10 +1,6 @@
 import { Dimensions } from "react-native";
-import { RNLocalize, ScreenInfo } from "../Types";
-
-function getRNLocalize(): RNLocalize | null {
-    try { return require("react-native-localize") as RNLocalize; }
-    catch { return null; }
-}
+import { ScreenInfo } from "../Types";
+import { debug } from "../utils/logger"
 
 export function getScreenInfo(): ScreenInfo {
     const { width, height } = Dimensions.get("window");
@@ -15,16 +11,35 @@ export function getScreenInfo(): ScreenInfo {
     return { width: w, height: h, orientation };
 }
 export function getLanguage(): string {
-    const rnLocalize = getRNLocalize();
-    if (rnLocalize) {
-        const locales = rnLocalize.getLocales();
+    try {
+        const RNLocalize = require("react-native-localize");
+        const locales = RNLocalize.getLocales();
         return locales.length ? locales[0].languageTag : "";
+    }
+    catch(err) {
+        try {
+            const expoLocalize = require("expo-localization");
+            const locales = expoLocalize.getLocales();
+            return locales.length ? locales[0].languageTag : "";
+        }
+        catch(err) {}
     }
     return "";
 }
 export function getTimezone(): string {
-    const rnLocalize = getRNLocalize();
-    if (rnLocalize) return rnLocalize.getTimeZone();
+    try {
+        const RNLocalize = require("react-native-localize");
+        const timezone = RNLocalize.getTimeZone();
+        return timezone;
+    }
+    catch(err) {
+        try {
+            const expoLocalize = require("expo-localization");
+            const timezone = expoLocalize.timezone;
+            return timezone;
+        }
+        catch(err) {}
+    }
     return "";
 }
 export function getPageURL(): string {
