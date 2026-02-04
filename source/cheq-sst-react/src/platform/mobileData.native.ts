@@ -200,8 +200,8 @@ export async function getMobileData(config: Config) {
                 architecture: device_architecture || "unknown",
                 id: device_id || "unknown",
                 screen: {
-                    width: screen_info.width,
                     height: screen_info.height,
+                    width: screen_info.width,
                     orientation: screen_info.orientation
                 },
                 os: {

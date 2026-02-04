@@ -1,12 +1,26 @@
+import DeviceInfo from 'react-native-device-info'
+import { Platform } from 'react-native'
 import { getStorageItem, setStorageItem } from "../Storage";
 import { UUID_KEY } from "../Info";
 import type { SendHttpPostArgs, SendErrorArgs } from "../Types"
 import { debug, debug_request, debug_response } from "../utils/logger";
 
+async function getUserAgent(userAgent?: string | null): Promise<string | undefined> {
+    if (userAgent) return userAgent;
+    try {
+        if (Platform.OS === 'android') return DeviceInfo.getUserAgent();
+        if (Platform.OS === 'ios') return await DeviceInfo.getUserAgent();
+    }
+    catch {
+        return undefined;
+    }
+}
+
 export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostArgs): Promise<number | null> {
     try {
         const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (userAgent) headers["User-Agent"] = userAgent;
+        const resolve_userAgent = await getUserAgent(userAgent);
+        if (resolve_userAgent) headers["User-Agent"] = resolve_userAgent;
 
         const uuid = getStorageItem(UUID_KEY);
         if (uuid) headers["Cookie"] = `uuid=${uuid}`;

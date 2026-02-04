@@ -28,6 +28,7 @@
         "typescript": "^5.9.3"
     },
     "dependencies": {
+        "react-native-localize": "^3.6.1",
         "react-native-tracking-transparency": "^0.1.2"
     }
 }

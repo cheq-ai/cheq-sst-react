@@ -159,7 +159,9 @@ export const Sst = (() => {
                 const page_title = getPageTitle();
                 const referrer = getReferrer();
 
-                const virtualBrowser: Record<string, any> = { height: screen.height, width: screen.width };
+                const virtualBrowser: Record<string, any> = {};
+                virtualBrowser.height = virtualBrowser.screenHeight = screen.height;
+                virtualBrowser.width = virtualBrowser.screenWidth = screen.width;
                 if (screen_depth) virtualBrowser.screenDepth = screen_depth;
                 if (page_url) virtualBrowser.page = page_url;
                 if (page_title) virtualBrowser.title = page_title;

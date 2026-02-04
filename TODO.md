@@ -1,5 +1,4 @@
 - logs for iOS
 - generate user agent to send
 - add models > advertising/device to sst request
-- device needs id?
 - test storage (cookies, local, session)
