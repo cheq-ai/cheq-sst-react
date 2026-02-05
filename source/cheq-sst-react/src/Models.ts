@@ -1,7 +1,8 @@
 import type { Config, EventInit } from "./Types";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "./Info";
+import { getMobileData } from "./platform/mobileData";
 
-const MODEL_VERSION = "1.0.0";
+const MODELS_VERSION = "1.0.0";
 export class Event {
     readonly name: string;
     readonly data: Record<string, unknown>;
@@ -19,9 +20,7 @@ type ModelType = "STANDARD" | "DEFAULT" | "REQUIRED";
 
 export abstract class Model {
     abstract key: string;
-
-    version: string = MODEL_VERSION;
-
+    version: string = "1.0.0";
     protected modelType: ModelType = "STANDARD";
 
     async get(_event: Event, _sst: { config: Config; userAgent?: string | null }): Promise<any> {
@@ -42,6 +41,7 @@ export abstract class Model {
  */
 export class CheqAdvertisingModel extends Model {
     key = "advertising";
+    version = "1.0.0";
     protected modelType: ModelType = "STANDARD";
 
     async get(): Promise<any> {
@@ -64,6 +64,7 @@ class LibraryModel extends Model {
 }
 
 export class Models {
+    static version: string = MODELS_VERSION;
     private models: Model[];
 
     private constructor(models: Model[]) {
@@ -78,7 +79,8 @@ export class Models {
 
     static default(): Models {
         return new Models([
-            new LibraryModel()
+            new LibraryModel(),
+            new DeviceDataModel()
         ]);
     }
 
@@ -95,22 +97,42 @@ export class Models {
         event: Event,
         sst: { config: Config; userAgent?: string | null }
     ): Promise<Record<string, any>> {
-        const result: Record<string, any> = {};
+        const result: Record<string, any> = {
+            version: Models.version
+        };
 
         for (const model of this.models) {
-            result[model.key] = await model.get(event, sst);
-        }
+            const value = await model.get(event, sst);
 
+            // avoid emitting empty models unless required
+            if (model.getType() === "REQUIRED" || (value != null && (typeof value !== "object" || Object.keys(value).length > 0))) {
+                if ((model.key === 'library') && value.models && value.models.library) {
+                    delete value.models.library;
+                }
+                result[model.key] = value;
+            }
+        }
         return result;
     }
 
-    info(): Record<string, string> {
+    info(filter?: (model: Model) => boolean): Record<string, string> {
         const out: Record<string, string> = {};
-
         for (const model of this.models) {
-            out[model.key] = model.version;
+            if (!filter || filter(model)) {
+                out[model.key] = model.version;
+            }
         }
-
         return out;
+    }
+}
+
+export class DeviceDataModel extends Model {
+    key = "deviceData";
+    version = "1.0.0";
+    protected modelType: ModelType = "DEFAULT";
+
+    async get(_event: Event, sst: { config: Config }): Promise<any> {
+        // Returns the same object you currently put in dataLayer.__mobileData
+        return await getMobileData(sst.config);
     }
 }

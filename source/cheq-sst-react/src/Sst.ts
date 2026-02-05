@@ -170,7 +170,6 @@ export const Sst = (() => {
                 if (timezone) virtualBrowser.timezone = timezone;
                 if (config.virtualBrowser.page) virtualBrowser.page = config.virtualBrowser.page;
 
-                const __mobileData = await getMobileData(config);
                 const dataLayer_key = config.dataLayerName;
                 const dataLayer_value = await dataLayer.all();
                 let is_empty_dataLayer = false;
@@ -191,7 +190,6 @@ export const Sst = (() => {
 
                 // dataLayer
                 sstData.dataLayer = {};
-                if (__mobileData && (Object.keys(__mobileData).length > 0)) sstData.dataLayer.__mobileData = __mobileData;
                 if (dataLayer_key && !is_empty_dataLayer) sstData.dataLayer[dataLayer_key] = dataLayer_value;
 
                 // events
@@ -199,6 +197,13 @@ export const Sst = (() => {
 
                 // virtualBrowser
                 sstData.virtualBrowser = virtualBrowser;
+
+                const models = await config.models.collect(event, { config, userAgent: getUA() });
+                if (models && Object.keys(models).length > 0) {
+                    sstData.dataLayer.__mobileData = {};
+                    if (models.deviceData) sstData.dataLayer.__mobileData = { ...models.deviceData };
+                    if (models.library) sstData.dataLayer.__mobileData.library = { ...models.library };
+                }
 
                 // storage
                 const storage = storagePayload();

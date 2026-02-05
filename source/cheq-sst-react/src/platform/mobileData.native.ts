@@ -207,10 +207,6 @@ export async function getMobileData(config: Config) {
                 os: {
                     name: device_os_name || "unknown",
                     version: device_os_version || "unknown"
-                },
-                library: {
-                    name: LIBRARY_NAME,
-                    version: LIBRARY_VERSION
                 }
             }
         };
