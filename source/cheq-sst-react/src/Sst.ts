@@ -5,7 +5,6 @@ import { Cookies, LocalStorage, SessionStorage, clearUUID, getUUID } from "./Sto
 import { sendHttpPost, sendErrorBeacon } from "./platform/HTTP";
 import { getPlatform } from "./platform/env";
 import { getLanguage, getPageTitle, getPageURL, getReferrer, getScreenInfo, getScreenDepth, getTimezone } from "./platform/virtualBrowser";
-import { getMobileData } from "./platform/mobileData"
 import { debug, setDebug } from "./utils/logger";
 
 const SST_VERSION = "1.0.0";
@@ -83,17 +82,6 @@ export const Sst = (() => {
         }
     }
 
-    function storagePayload() {
-        const out: Record<string, any> = {};
-        const c = cookies.eventData();
-        const l = localStorageStore.eventData();
-        const s = sessionStorageStore.eventData();
-        if (c) out.cookies = c;
-        if (l) out.localStorage = l;
-        if (s) out.sessionStorage = s;
-        return Object.keys(out).length ? out : null;
-    }
-
     async function sendError(msg: string, fn: string, errorName: string) {
         if (!config) return false;
 
@@ -132,85 +120,122 @@ export const Sst = (() => {
                 debug("Configuration error", err);
             }
         },
-
         getCheqUuid() {
             return getUUID();
         },
-
         clearCheqUuid() {
             clearUUID();
         },
+        getEventData(event: Event) {
+            if (!config) return null;
 
+            const event_data: Record<string, any> = { ...event.data };
+            if (event_data.__timestamp == null) event_data.__timestamp = config.dateProvider.now().getTime();
+            return event_data;
+        },
+        async getDataLayer(event: Event): Promise<string | unknown | null> {
+            if (!config) return null;
+
+            const dataLayerNs: string | undefined = config.dataLayerName;
+            if (!dataLayerNs) return null;
+
+            const dataLayerValue: unknown = await dataLayer.all();
+            if (!dataLayerValue) return null;
+            if (Array.isArray(dataLayerValue) && (dataLayerValue.length === 0)) return null;
+            else if ((typeof dataLayerValue === 'object') && (Object.keys(dataLayerValue).length === 0)) return null;
+
+            const response: Record<string, unknown> = { [dataLayerNs]: dataLayerValue };
+
+            // models
+            await ensureUserAgent();
+            const models = await config.models.collect(event, { config, userAgent: getUA() });
+            if ((typeof models === 'object') && Object.keys(models).length > 0) {
+                const mobileData: Record<string, unknown> = {};
+
+                // device data
+                const deviceData = models.deviceData;
+                if (models.deviceData) Object.assign(mobileData, deviceData);
+
+                const library = models.library;
+                if (models.library) {
+                    const libraryCopy: Record<string, unknown> = { ...library };
+                    const libModels = libraryCopy.models;
+                    if (Object.keys(libModels || {}).length === 0) {
+                        delete libraryCopy.models;
+                    }
+                    mobileData.library = libraryCopy;
+                }
+
+                if (Object.keys(mobileData).length > 0) {
+                    response.__mobileData = mobileData;
+                }
+            }
+            return response;
+        },
+        getSettings() {
+            if (!config) return null;
+
+            return { publishPath: config.publishPath, nexusHost: config.nexusHost };
+        },
+        getStorage() {
+            if (!config) return null;
+
+            const out: Record<string, any> = {};
+            const c = cookies.eventData();
+            const l = localStorageStore.eventData();
+            const s = sessionStorageStore.eventData();
+            if (c) out.cookies = c;
+            if (l) out.localStorage = l;
+            if (s) out.sessionStorage = s;
+            return Object.keys(out).length ? out : null;
+        },
+        async getVirtualBrowser() {
+            if (!config) return null;
+
+            await ensureUserAgent();
+            const env = getCachedEnv(config.screenEnabled);
+            const screen = env.screen;
+            const language = env.language;
+            const timezone = env.timezone;
+            const screen_depth = env.screenDepth;
+
+            const page_url = getPageURL();
+            const page_title = getPageTitle();
+            const referrer = getReferrer();
+
+            const virtualBrowser: Record<string, any> = {};
+            virtualBrowser.height = virtualBrowser.screenHeight = screen.height;
+            virtualBrowser.width = virtualBrowser.screenWidth = screen.width;
+            if (screen_depth) virtualBrowser.screenDepth = screen_depth;
+            if (page_url) virtualBrowser.page = page_url;
+            if (page_title) virtualBrowser.title = page_title;
+            if (referrer) virtualBrowser.referrer = referrer;
+            if (language) virtualBrowser.language = language;
+            if (timezone) virtualBrowser.timezone = timezone;
+            if (config.virtualBrowser.page) virtualBrowser.page = config.virtualBrowser.page;
+            return virtualBrowser;
+        },
         async trackEvent(event: Event): Promise<TrackEventResult | null> {
             try {
-                if (!config) return null;
-
-                await ensureUserAgent();
-                const eData: Record<string, any> = { ...event.data };
-                if (eData.__timestamp == null) eData.__timestamp = config.dateProvider.now().getTime();
-
-                const env = getCachedEnv(config.screenEnabled);
-                const screen = env.screen;
-                const language = env.language;
-                const timezone = env.timezone;
-                const screen_depth = env.screenDepth;
-
-                const page_url = getPageURL();
-                const page_title = getPageTitle();
-                const referrer = getReferrer();
-
-                const virtualBrowser: Record<string, any> = {};
-                virtualBrowser.height = virtualBrowser.screenHeight = screen.height;
-                virtualBrowser.width = virtualBrowser.screenWidth = screen.width;
-                if (screen_depth) virtualBrowser.screenDepth = screen_depth;
-                if (page_url) virtualBrowser.page = page_url;
-                if (page_title) virtualBrowser.title = page_title;
-                if (referrer) virtualBrowser.referrer = referrer;
-                if (language) virtualBrowser.language = language;
-                if (timezone) virtualBrowser.timezone = timezone;
-                if (config.virtualBrowser.page) virtualBrowser.page = config.virtualBrowser.page;
-
-                const dataLayer_key = config.dataLayerName;
-                const dataLayer_value = await dataLayer.all();
-                let is_empty_dataLayer = false;
-                if (!dataLayer_value) {
-                    is_empty_dataLayer = true;
-                }
-                else if (Array.isArray(dataLayer_value) && (dataLayer_value.length === 0)) {
-                    is_empty_dataLayer = true;
-                }
-                else if ((typeof dataLayer_value === 'object') && (Object.keys(dataLayer_value).length === 0)) {
-                    is_empty_dataLayer = true;
+                debug(`trackEvent: ${event.name}`);
+                if (!config) {
+                    debug("trackEvent error - missing config");
+                    return null;
                 }
 
                 const sstData: Record<string, any> = {};
+                sstData.events = [{ name: event.name, data: this.getEventData(event) }];
+                sstData.dataLayer = await this.getDataLayer(event);
+                sstData.settings = this.getSettings();
+                sstData.storage = this.getStorage();
+                sstData.virtualBrowser = await this.getVirtualBrowser();
                 
-                // settings
-                sstData.settings = { publishPath: config.publishPath, nexusHost: config.nexusHost };
-
-                // dataLayer
-                sstData.dataLayer = {};
-                if (dataLayer_key && !is_empty_dataLayer) sstData.dataLayer[dataLayer_key] = dataLayer_value;
-
-                // events
-                sstData.events = [{ name: event.name, data: eData }];
-
-                // virtualBrowser
-                sstData.virtualBrowser = virtualBrowser;
-
-                const models = await config.models.collect(event, { config, userAgent: getUA() });
-                if (models && Object.keys(models).length > 0) {
-                    sstData.dataLayer.__mobileData = {};
-                    if (models.deviceData) sstData.dataLayer.__mobileData = { ...models.deviceData };
-                    if (models.library) sstData.dataLayer.__mobileData.library = { ...models.library };
-                }
-
-                // storage
-                const storage = storagePayload();
-                if (storage) sstData.storage = storage;
-
                 // cleanup
-                if (Object.keys(sstData.dataLayer).length === 0) delete sstData.dataLayer;
+                Object.entries(sstData).forEach(([key, value]) => {
+                    if ((value === null) || (value === undefined) || (value === "")) delete sstData[key];
+                    else if (Array.isArray(value) && (value.length === 0)) delete sstData[key];
+                    else if ((typeof value === 'object') && (Object.keys(value).length === 0)) delete sstData[key];
+                });
 
                 let jsonString: string;
                 try {

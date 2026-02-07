@@ -1,5 +1,4 @@
 import { NativeModules, Platform } from "react-native";
-import { LIBRARY_NAME, LIBRARY_VERSION } from "../Info";
 import type { Config, ATTStatus } from "../Types";
 import { getScreenInfo } from "./virtualBrowser"
 import { debug } from "../utils/logger"

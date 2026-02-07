@@ -1,2 +1,2 @@
-- add models > advertising/device to sst request
-- test storage (cookies, local, session)
+- remove device model
+- remove advertising model

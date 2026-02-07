@@ -1,13 +1,9 @@
-/**
- * Web storage equivalents:
- * - Cookies: (Swift cookie storage) → stored in localStorage with a prefix
- * - LocalStorage: → localStorage with a prefix
- * - SessionStorage: → sessionStorage with a prefix
- */
-
 import { UUID_KEY } from "./Info";
 
 type KV = Record<string, string>;
+type Primitive = string | number | boolean | null;
+type KVInput = Record<string, Primitive>;
+
 function createMemoryStorage(): Storage {
     let store: Record<string, string> = {};
 
@@ -33,18 +29,25 @@ function createMemoryStorage(): Storage {
     };
 }
 
+// ---- Memory-only storage areas (separate buckets) ----
+const memoryCookiesStorage = createMemoryStorage();
+const memoryLocalStorage = createMemoryStorage();
+const memorySessionStorage = createMemoryStorage();
+
+// If you want UUID to be shared globally, keep it in "local" memory area:
+const memoryGlobalStorage = memoryLocalStorage;
+
+// ---- Always return memory (never browser storage) ----
 function getSafeLocalStorage(): Storage {
-    if (typeof window !== "undefined" && "localStorage" in window && window.localStorage) {
-        return window.localStorage;
-    }
-    return createMemoryStorage();
+    return memoryLocalStorage;
 }
 
 function getSafeSessionStorage(): Storage {
-    if (typeof window !== "undefined" && "sessionStorage" in window && window.sessionStorage) {
-        return window.sessionStorage;
-    }
-    return createMemoryStorage();
+    return memorySessionStorage;
+}
+
+function getSafeCookiesStorage(): Storage {
+    return memoryCookiesStorage;
 }
 
 class PrefixedStorage {
@@ -81,9 +84,19 @@ class PrefixedStorage {
 export class SstStorage {
     constructor(private store: PrefixedStorage, private keyName: "name" | "key") {}
 
-    add(key: string, value: string) {
-        this.store.set(key, value);
+    add(key: string, value: Primitive): void;
+    add(values: KVInput): void;
+    add(arg1: string | KVInput, arg2?: Primitive): void {
+        if (typeof arg1 === "string") {
+            this._add_one(arg1, arg2);
+            return;
+        }
+
+        for (const [k, v] of Object.entries(arg1)) {
+            this._add_one(k, v);
+        }
     }
+
     all(): KV {
         return this.store.all();
     }
@@ -103,53 +116,46 @@ export class SstStorage {
         if (keys.length === 0) return null;
         return keys.map(k => ({ [this.keyName]: k, value: data[k] }));
     }
+
+    private _add_one(key: string, value: Primitive | undefined): void {
+        if (value === undefined) return;
+
+        const storedValue = value === null ? "null" : String(value);
+        this.store.set(key, storedValue);
+    }
 }
 
 export class Cookies extends SstStorage {
     constructor() {
-        super(new PrefixedStorage(getSafeLocalStorage(), "cheq.sst.storage.cookie"), "name");
+        super(new PrefixedStorage(getSafeCookiesStorage(), "cheq.sst.storage.cookie"), "name");
     }
 }
+
 export class LocalStorage extends SstStorage {
     constructor() {
         super(new PrefixedStorage(getSafeLocalStorage(), "cheq.sst.storage.local"), "key");
     }
 }
+
 export class SessionStorage extends SstStorage {
     constructor() {
         super(new PrefixedStorage(getSafeSessionStorage(), "cheq.sst.storage.session"), "key");
     }
 }
 
-function canUseLocalStorage(): boolean {
-    try {
-        if (typeof window === "undefined") return false;
-        if (!("localStorage" in window)) return false;
-
-        const testKey = "__sst_test__";
-        window.localStorage.setItem(testKey, "1");
-        window.localStorage.removeItem(testKey);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
+// ---- Memory-only "global" helpers (UUID etc.) ----
 export function getStorageItem(key: string): string | null {
-    return canUseLocalStorage() ? localStorage.getItem(key) : null;
+    return memoryGlobalStorage.getItem(key);
 }
 
 export function setStorageItem(key: string, value: string): void {
-    if (canUseLocalStorage()) {
-        localStorage.setItem(key, value);
-    }
+    memoryGlobalStorage.setItem(key, value);
 }
 
 export function removeStorageItem(key: string): void {
-    if (canUseLocalStorage()) {
-        localStorage.removeItem(key);
-    }
+    memoryGlobalStorage.removeItem(key);
 }
+
 export function getUUID() {
     return getStorageItem(UUID_KEY);
 }
