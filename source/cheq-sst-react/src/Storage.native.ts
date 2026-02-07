@@ -84,13 +84,13 @@ export class Cookies extends SstStorage {
 
 export class LocalStorage extends SstStorage {
     constructor() {
-        super("cheq.sst.storage.local");
+        super("cheq.sst.storage.local", "key");
     }
 }
 
 export class SessionStorage extends SstStorage {
     constructor() {
-        super("cheq.sst.storage.session");
+        super("cheq.sst.storage.session", "key");
     }
 }
 
