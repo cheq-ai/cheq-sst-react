@@ -24,6 +24,7 @@
     "fast-xml-parser": "^5.3.3"
   },
   "devDependencies": {
+    "@react-native-community/cli": "latest",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },

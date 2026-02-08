@@ -232,21 +232,6 @@ export default function App() {
 
             <View style={styles.actions}>
                 <ButtonLink
-                    onPress={att_status === "notDetermined" ? requestTrackingPermission : undefined}
-                    disabled={att_status !== "notDetermined"}
-                    text={
-                        att_status === null
-                            ? "Advertising Model Disabled"
-                            : att_status === "notDetermined"
-                                ? "Request Tracking Permission"
-                                : att_status === "denied"
-                                    ? "Tracking Permission Denied"
-                                    : att_status === "authorized"
-                                        ? "Tracking Permission Granted"
-                                        : "Unknown Tracking Permission Status"
-                    }
-                />
-                <ButtonLink
                     onPress={async () => {
                         clearUUID();
                         setUuid(null);
@@ -259,30 +244,9 @@ export default function App() {
                 <ButtonLink onPress={trigger_track_event_error} text="Trigger TrackEvent Error" />
                 <ButtonLink onPress={trigger_data_layer_add_error} text="Trigger DataLayer.add Error" />
             </View>
-
             <View style={styles.block}>
                 <Text style={styles.label}>Last Send:</Text>
                 <Text style={styles.code}>{sending ? "Sending…" : JSON.stringify(lastSend, null, 2)}</Text>
-            </View>
-
-            <View style={styles.block}>
-                <Text style={styles.label}>Data Layer:</Text>
-                <Text style={styles.code}>{JSON.stringify(dataLayer, null, 2)}</Text>
-            </View>
-
-            <View style={styles.block}>
-                <Text style={styles.label}>Storage:</Text>
-                <Text style={styles.code}>{JSON.stringify(storage, null, 2)}</Text>
-            </View>
-
-            <View style={styles.block}>
-                <Text style={styles.label}>Settings:</Text>
-                <Text style={styles.code}>{JSON.stringify(settings, null, 2)}</Text>
-            </View>
-
-            <View style={styles.block}>
-                <Text style={styles.label}>Virtual Browser:</Text>
-                <Text style={styles.code}>{JSON.stringify(virtualBrowser, null, 2)}</Text>
             </View>
         </ScrollView>
     );
