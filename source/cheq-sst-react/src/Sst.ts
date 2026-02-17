@@ -10,12 +10,13 @@ import { debug, setDebug } from "./utils/logger";
 const SST_VERSION = "1.0.0";
 const SST_ORIGIN = "mobile";
 let cachedEnv: CachedEnv | null = null;
+let resizeListenerRegistered = false;
 
-if ((typeof window !== "undefined") && (typeof window.addEventListener === "function")) {
-    // update cache on screen resize
-    window.addEventListener("resize", () => {
-        cachedEnv = null;
-    }, { passive: true });
+class SstConfigurationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "SstConfigurationError";
+    }
 }
 
 const baseParams: Record<string, string> = {
@@ -23,6 +24,17 @@ const baseParams: Record<string, string> = {
     sstOrigin: SST_ORIGIN,
     sstPlatform: getPlatform()
 };
+
+function registerResizeListenerOnce() {
+    if (resizeListenerRegistered) return;
+
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+        window.addEventListener("resize", () => {
+            cachedEnv = null;
+        }, { passive: true });
+    }
+    resizeListenerRegistered = true;
+}
 
 function getCachedEnv(screenEnabled: boolean): CachedEnv {
     if (cachedEnv) return cachedEnv;
@@ -53,9 +65,21 @@ function buildQuery(base: Record<string, string>, extra: Record<string, string>)
     return sp.toString();
 }
 
-function buildSstUrl(domain: string, clientName: string, params: Record<string, string>) {
+function validateClientName(clientName: string): string {
+    const response = (clientName ?? "").trim();
+    if (!response) throw new SstConfigurationError("Missing config: clientName");
+    if (!/^[A-Za-z0-9_-]+$/.test(response) || (response.length > 256)) throw new SstConfigurationError("Invalid config: clientName");
+    return response;
+}
+
+function buildSstUrl(domain: string, clientName: string, params: Record<string, string>): string {
+    const cleanDomain = (domain ?? "").trim();
+    if (!cleanDomain) throw new SstConfigurationError("Missing config: domain");
+
+    const cleanClientName = validateClientName(clientName);
+
     const qs = buildQuery(baseParams, params);
-    return `https://${domain}/pc/${clientName}/sst?${qs}`;
+    return new URL(`https://${cleanDomain}/pc/${cleanClientName}/sst?${qs}`).toString();
 }
 
 function buildErrorUrl(nexusHost: string, q: Record<string, string>) {
@@ -85,15 +109,24 @@ export const Sst = (() => {
     async function sendError(msg: string, fn: string, errorName: string) {
         if (!config) return false;
 
+        let safeClientName: string;
+        try {
+            safeClientName = validateClientName(config.clientName);
+        }
+        catch (err) {
+            console.error("SST sendError: invalid clientName", err);
+            return false;
+        }
+
         const url = buildErrorUrl(config.nexusHost, {
             msg: truncate(msg, 1024),
             fn: truncate(fn, 256),
-            client: truncate(config.clientName, 256),
+            client: truncate(safeClientName, 256),
             publishPath: truncate(config.publishPath, 256),
             errorName: truncate(errorName, 256),
         });
 
-        const referrer = buildSstUrl(config.domain, config.clientName, {});
+        const referrer = buildSstUrl(config.domain, safeClientName, {});
         return sendErrorBeacon({ userAgent: getUA(), url, referrer });
     }
 
@@ -104,20 +137,21 @@ export const Sst = (() => {
         sessionStorage: sessionStorageStore,
         sendError: sendError,
         configure(next: Config) {
+            setDebug(Boolean(next.debug));
+            registerResizeListenerOnce();
+
             try {
-                setDebug(Boolean(next.debug));
-                try {
-                    new URL(`https://${next.domain}/pc/${next.clientName}/sst`);
-                }
-                catch {
-                    if (next.debug) console.error("Not configured, invalid domain or client");
-                    return;
-                }
+                buildSstUrl(next.domain, next.clientName, {});
                 config = next;
                 debug("Configured");
             }
             catch(err) {
-                debug("Configuration error", err);
+                config = null;
+                const error = err as Error;
+                sendError(error.message, "Invalid config: unable to configure SST", "SstConfigurationError");
+
+                if (next.debug) console.error(error);
+                throw error;
             }
         },
         getCheqUuid() {
@@ -216,52 +250,46 @@ export const Sst = (() => {
             return virtualBrowser;
         },
         async trackEvent(event: Event): Promise<TrackEventResult | null> {
-            try {
-                debug(`trackEvent: ${event.name}`);
-                if (!config) {
-                    debug("trackEvent error - missing config");
-                    return null;
-                }
-
-                const sstData: Record<string, any> = {};
-                sstData.events = [{ name: event.name, data: this.getEventData(event) }];
-                sstData.dataLayer = await this.getDataLayer(event);
-                sstData.settings = this.getSettings();
-                sstData.storage = this.getStorage();
-                sstData.virtualBrowser = await this.getVirtualBrowser();
-                
-                // cleanup
-                Object.entries(sstData).forEach(([key, value]) => {
-                    if ((value === null) || (value === undefined) || (value === "")) delete sstData[key];
-                    else if (Array.isArray(value) && (value.length === 0)) delete sstData[key];
-                    else if ((typeof value === 'object') && (Object.keys(value).length === 0)) delete sstData[key];
-                });
-
-                let jsonString: string;
-                try {
-                    jsonString = JSON.stringify(sstData);
-                } catch (e: any) {
-                    await sendError(String(e?.message ?? e), "Sst.trackEvent", "SerializationError");
-                    return null;
-                }
-
-                const url = buildSstUrl(config.domain, config.clientName, event.parameters);
-
-                try {
-                    const statusCode = await sendHttpPost({
-                        userAgent: getUA(),
-                        url,
-                        jsonString,
-                        debug: config.debug,
-                    });
-                    return { url, requestBody: jsonString, statusCode, userAgent: getUA() };
-                } catch (e: any) {
-                    await sendError(String(e?.message ?? e), "Sst.trackEvent", "NetworkError");
-                    return null;
-                }
+            debug(`trackEvent: ${event.name}`);
+            if (!config) {
+                debug("trackEvent error - missing config");
+                return null;
             }
-            catch(err) {
-                debug("trackEvent error", err);
+
+            const sstData: Record<string, any> = {};
+            sstData.events = [{ name: event.name, data: this.getEventData(event) }];
+            sstData.dataLayer = await this.getDataLayer(event);
+            sstData.settings = this.getSettings();
+            sstData.storage = this.getStorage();
+            sstData.virtualBrowser = await this.getVirtualBrowser();
+            
+            // cleanup
+            Object.entries(sstData).forEach(([key, value]) => {
+                if ((value === null) || (value === undefined) || (value === "")) delete sstData[key];
+                else if (Array.isArray(value) && (value.length === 0)) delete sstData[key];
+                else if ((typeof value === 'object') && (Object.keys(value).length === 0)) delete sstData[key];
+            });
+
+            let jsonString: string;
+            try {
+                jsonString = JSON.stringify(sstData);
+            } catch (e: any) {
+                await sendError(String(e?.message ?? e), "Sst.trackEvent", "SerializationError");
+                return null;
+            }
+
+            const url = buildSstUrl(config.domain, config.clientName, event.parameters);
+
+            try {
+                const statusCode = await sendHttpPost({
+                    userAgent: getUA(),
+                    url,
+                    jsonString,
+                    debug: config.debug,
+                });
+                return { url, requestBody: jsonString, statusCode, userAgent: getUA() };
+            } catch (e: any) {
+                await sendError(String(e?.message ?? e), "Sst.trackEvent", "NetworkError");
                 return null;
             }
         },

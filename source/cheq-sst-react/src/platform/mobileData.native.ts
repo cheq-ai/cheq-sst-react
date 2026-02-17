@@ -137,7 +137,9 @@ export async function getAdvertisingId(): Promise<string | null> {
             }
         }
     }
-    catch {}
+    catch {
+        debug('React native Platform library not found');
+    }
 
     // Expo
     try {
@@ -146,7 +148,9 @@ export async function getAdvertisingId(): Promise<string | null> {
             const id = await expoTT.getAdvertisingId();
             return id || null;
         }
-    } catch {}
+    } catch {
+        debug('Expo Tracking Transparency library not found');
+    }
 
     return null;
 }

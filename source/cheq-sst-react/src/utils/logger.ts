@@ -94,7 +94,8 @@ export async function debug_response(response: Response): Promise<void> {
         debug("Response Body:");
 
         try {
-            const text = await response.text();
+            const cloned = response.clone();
+            const text = await cloned.text();
             debug(text || "<empty body>");
         }
         catch {

@@ -20,12 +20,9 @@ async function getItem(key: string): Promise<string | null> {
         return memory.has(key) ? memory.get(key)! : null;
     }
     catch (err: unknown) {
-        let message = "Unknown error";
-        if (err instanceof Error) message = err.message;
-        else message = String(err);
-
-        Sst.sendError(`DataLayer.getItem failed for key "${key}": ${message}`, "DataLayer.getItem", "SerializationError");
-        return null;
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sst.sendError(`DataLayer.getItem failed for key "${key}": ${error.message}`, "DataLayer.getItem", "SerializationError");
+        throw error;
     }
 }
 
@@ -41,11 +38,9 @@ async function setItem(key: string, value: string): Promise<void> {
         memory.set(key, value);
     }
     catch (err: unknown) {
-        let message = "Unknown error";
-        if (err instanceof Error) message = err.message;
-        else message = String(err);
-
-        Sst.sendError(`DataLayer.setItem failed for key "${key}": ${message}`, "DataLayer.setItem", "SerializationError");
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sst.sendError(`DataLayer.setItem failed for key "${key}": ${error.message}`, "DataLayer.setItem", "SerializationError");
+        throw error;
     }
 }
 

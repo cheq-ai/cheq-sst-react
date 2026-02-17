@@ -12,7 +12,7 @@ function makeTimeoutSignal(timeoutMs: number): AbortSignal | undefined {
     return anyAbortSignal.timeout ? anyAbortSignal.timeout(timeoutMs) : undefined;
 }
 
-async function sendFetchPost(args: SendHttpPostArgs): Promise<void> {
+async function sendFetchPost(args: SendHttpPostArgs): Promise<Response | undefined> {
     const { url, jsonString, timeoutMs = 20_000, onFailedRequest } = args;
     const parsedBody = safeParseJson(jsonString);
 
@@ -40,6 +40,7 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<void> {
         debug_response(res);
 
         if (!res.ok) onFailedRequest?.({ name: "SST request error response", body: parsedBody });
+        return res;
     }
     catch (error) {
         const name = (error as { name?: string } | null)?.name === "TimeoutError" ? "SST request timeout" : "SST request failed";
@@ -49,7 +50,7 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<void> {
 }
 
 function sendBeaconJson(url: string, jsonString: string): boolean {
-    if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
+    if ((typeof navigator === "undefined") || (typeof navigator.sendBeacon !== "function")) {
         return false;
     }
 
@@ -57,7 +58,9 @@ function sendBeaconJson(url: string, jsonString: string): boolean {
         method: "POST",
         body: jsonString
     });
-    return navigator.sendBeacon(url, jsonString);
+
+    const blob = new Blob([jsonString], { type: "text/plain;charset=UTF-8" });
+    return navigator.sendBeacon(url, blob);
 }
 
 export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | null> {
@@ -69,8 +72,9 @@ export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | nul
         return 204;
     }
 
-    await sendFetchPost(args);
-    return 200;
+    const response = await sendFetchPost(args);
+    if (!response) return null;
+    return response.status;
 }
 
 export function sendErrorBeacon({ url }: SendErrorArgs): boolean {

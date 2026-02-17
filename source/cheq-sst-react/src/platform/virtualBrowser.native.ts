@@ -22,7 +22,9 @@ export function getLanguage(): string {
             const locales = expoLocalize.getLocales();
             return locales.length ? locales[0].languageTag : "";
         }
-        catch(err) {}
+        catch(err) {
+            debug('Unable to get language from RNLocalize or Expo Localization');
+        }
     }
     return "";
 }
@@ -38,7 +40,9 @@ export function getTimezone(): string {
             const timezone = expoLocalize.timezone;
             return timezone;
         }
-        catch(err) {}
+        catch(err) {
+            debug('Unable to get timezone from RNLocalize or Expo Localization');
+        }
     }
     return "";
 }

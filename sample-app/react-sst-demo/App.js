@@ -22,6 +22,8 @@ const configure_sst = () => {
             models: Models.default().add(new CheqAdvertisingModel()),
             //models: Models.default(),
             //models: Models.required(),
+            //models: Models.default().add(new LibraryModel()), // throws error
+            //models: Models.default().add(new CheqAdvertisingModel()).add(new CheqAdvertisingModel()), // duplicate error
             debug: true
         })
     );

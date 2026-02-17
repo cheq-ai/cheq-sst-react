@@ -65,10 +65,25 @@ class LibraryModel extends Model {
 
 export class Models {
     static version: string = MODELS_VERSION;
+
     private models: Model[];
 
+    private byKey: Map<string, Model>;
+    private byType: Map<ModelType, Model[]>;
+
     private constructor(models: Model[]) {
-        this.models = models;
+        this.models = [];
+        this.byKey = new Map<string, Model>();
+        this.byType = new Map<ModelType, Model[]>([
+            ["STANDARD", []],
+            ["DEFAULT", []],
+            ["REQUIRED", []]
+        ]);
+
+        // Validate initial set too (required/default)
+        for (const model of models) {
+            this.addInternal(model);
+        }
     }
 
     static required(): Models {
@@ -85,8 +100,34 @@ export class Models {
     }
 
     add(model: Model): Models {
-        this.models.push(model);
+        this.addInternal(model);
         return this;
+    }
+
+    private addInternal(model: Model): void {
+        const key = (model.key ?? "").trim();
+
+        if (!key) {
+            throw new Error("Models.add(): model.key must be a non-empty string");
+        }
+
+        const existing = this.byKey.get(key);
+        if (existing) {
+            throw new Error(
+                `Models.add(): duplicate model key "${key}" (existing type=${existing.getType()}, new type=${model.getType()})`
+            );
+        }
+
+        this.models.push(model);
+        this.byKey.set(key, model);
+
+        const type = model.getType();
+        const bucket = this.byType.get(type);
+        if (!bucket) {
+            // Should never happen given ModelType union, but keeps it safe.
+            throw new Error(`Models.add(): unknown model type "${String(type)}" for key "${key}"`);
+        }
+        bucket.push(model);
     }
 
     hasAdvertising(): boolean {
