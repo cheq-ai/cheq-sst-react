@@ -35,7 +35,7 @@ export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostA
         const newUuid = res.headers.get("x-offsite-uuid");
         if (newUuid) setStorageItem(UUID_KEY, newUuid);
 
-        debug_response(res);
+        await debug_response(res);
         return res.status;
     }
     catch (error) {

@@ -37,7 +37,7 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<Response | undefin
         });
 
         const res = await fetch(url, fetchOptions);
-        debug_response(res);
+        await debug_response(res);
 
         if (!res.ok) onFailedRequest?.({ name: "SST request error response", body: parsedBody });
         return res;
