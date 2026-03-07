@@ -1,0 +1,2 @@
+- remove device model
+- remove advertising model
