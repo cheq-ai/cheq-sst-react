@@ -174,12 +174,11 @@ export default function App() {
                 await refreshUuid();
             }
 
-            // Read status (do NOT prompt here)
+            // Prompt for ATT on iOS (no-op on Android)
+            const granted = await getAdvertisingAuthorization();
             const status = await getTrackingAuthorizationStatus();
             if (cancelled) return;
             setAttStatus(status);
-
-            const granted = status === "authorized";
             setAttTrackingGranted(granted);
 
             if (granted) {
@@ -197,10 +196,9 @@ export default function App() {
 
     const requestTrackingPermission = async () => {
         try {
-            const status = await getAdvertisingAuthorization();
+            const granted = await getAdvertisingAuthorization();
+            const status = await getTrackingAuthorizationStatus();
             setAttStatus(status);
-
-            const granted = status === "authorized";
             setAttTrackingGranted(granted);
 
             if (granted) {

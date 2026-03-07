@@ -4,18 +4,6 @@ function isNodeRuntime(): boolean {
     return (typeof process !== "undefined") && !!process.stdout && !!process.versions?.node;
 }
 
-function safeStringify(value: unknown): string {
-    const seen = new WeakSet();
-    return JSON.stringify(value, (key, val) => {
-        if (typeof val === "object" && val !== null) {
-            if (seen.has(val)) return "[Circular]";
-            seen.add(val);
-        }
-        if (typeof val === "function") return `[Function ${val.name || "anonymous"}]`;
-        if (typeof val === "undefined") return "[Undefined]";
-        return val;
-    }, 2);
-}
 
 export function setDebug(enabled: boolean) {
     DEBUG = enabled;
@@ -33,9 +21,18 @@ export function debug(message: string, ...args: unknown[]) {
         if (typeof arg === "string") return arg;
 
         try {
-            return JSON.stringify(arg);
+            const seen = new WeakSet();
+            return JSON.stringify(arg, (_key, val) => {
+                if (typeof val === "object" && val !== null) {
+                    if (seen.has(val)) return "[Circular]";
+                    seen.add(val);
+                }
+                if (typeof val === "function") return `[Function ${val.name || "anonymous"}]`;
+                if (typeof val === "undefined") return "[Undefined]";
+                return val;
+            });
         }
-        catch (e) {
+        catch {
             return "[Unserializable]";
         }
     });
@@ -47,10 +44,10 @@ export function debug(message: string, ...args: unknown[]) {
         console.log("[CHEQ SST]", output);
     }
 
-    // Also write to stdout when available (nice for pure Node usage)
+    // Also write to stdout in Node environments (console.log above already fires, this adds a newline-terminated write for piped output)
     if (isNodeRuntime()) {
-        try { process.stdout.write(`[SST] ${output}\n`); }
-        catch {}
+        try { process.stdout.write(`[CHEQ SST] ${output}\n`); }
+        catch { /* stdout write failed; console.log above already fired */ }
     }
 }
 

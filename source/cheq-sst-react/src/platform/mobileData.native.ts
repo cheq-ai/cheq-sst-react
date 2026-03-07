@@ -95,35 +95,53 @@ export async function getTrackingAuthorizationStatus(): Promise<ATTStatus> {
 }
 
 let cachedATT: boolean | null = null;
+let attInFlight: Promise<boolean> | null = null;
+
 export async function getAdvertisingAuthorization(): Promise<boolean> {
     if (Platform.OS !== "ios") return true;
     if (cachedATT !== null) return cachedATT;
+    // Serialize concurrent calls so only one permission prompt fires at a time.
+    if (attInFlight) return attInFlight;
 
-    // Expo prompt
-    const expoTT = getExpoTrackingTransparency();
-    if (expoTT?.requestTrackingPermissionsAsync) {
-        const res = await expoTT.requestTrackingPermissionsAsync();
-        cachedATT = normalizeATTStatus(res.status) === "authorized";
-        return cachedATT;
-    }
+    attInFlight = (async () => {
+        try {
+            // Expo prompt
+            const expoTT = getExpoTrackingTransparency();
+            if (expoTT?.requestTrackingPermissionsAsync) {
+                const res = await expoTT.requestTrackingPermissionsAsync();
+                cachedATT = normalizeATTStatus(res.status) === "authorized";
+                return cachedATT;
+            }
 
-    // RN lib prompt (try common names)
-    const rnTT = getRNTrackingTransparency();
-    const request =
-        (rnTT?.requestTrackingPermission as unknown) ??
-        (rnTT?.requestTrackingAuthorization as unknown) ??
-        (rnTT?.requestTrackingPermissions as unknown);
+            // RN lib prompt (try common names)
+            const rnTT = getRNTrackingTransparency();
+            const request =
+                (rnTT?.requestTrackingPermission as unknown) ??
+                (rnTT?.requestTrackingAuthorization as unknown) ??
+                (rnTT?.requestTrackingPermissions as unknown);
 
-    if (typeof request === "function") {
-        const status = await (request as () => Promise<unknown>)();
-        cachedATT = normalizeATTStatus(status) === "authorized";
-        return cachedATT;
-    }
+            if (typeof request === "function") {
+                const status = await (request as () => Promise<unknown>)();
+                cachedATT = normalizeATTStatus(status) === "authorized";
+                return cachedATT;
+            }
 
-    // Fallback to current status if we can't prompt
-    const status = await getTrackingAuthorizationStatus();
-    cachedATT = status === "authorized";
-    return cachedATT;
+            // Fallback to current status if we can't prompt
+            const status = await getTrackingAuthorizationStatus();
+            cachedATT = status === "authorized";
+            return cachedATT;
+        }
+        catch (err) {
+            debug("getAdvertisingAuthorization failed", err);
+            // Do not cache on error — allow retry on next call.
+            return false;
+        }
+        finally {
+            attInFlight = null;
+        }
+    })();
+
+    return attInFlight;
 }
 
 export async function getAdvertisingId(): Promise<string | null> {
@@ -178,7 +196,7 @@ export async function getMobileData(config: Config) {
         const device_supported_abis = typeof deviceInfo?.supportedAbis === "function"? await deviceInfo.supportedAbis() : [];
         const device_architecture = device_supported_abis.length > 0 ? normalizeAbi(device_supported_abis[0]) : "unknown";
 
-        const device_model = deviceInfo?.getModel();
+        const device_model = deviceInfo?.getModel?.();
         const device_id = await getDeviceId(deviceInfo);
 
         const screen_info = getScreenInfo();
@@ -216,6 +234,7 @@ export async function getMobileData(config: Config) {
     }
     catch(err) {
         debug('getMobileData error', err);
+        console.error('[CHEQ SST] getMobileData failed:', err);
         return {};
     }
 }

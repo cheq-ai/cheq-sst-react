@@ -1,12 +1,18 @@
 import { convertToJSONString } from "./JSON";
-import { AsyncStorageLike } from "./Types"
-import { Sst } from "./Sst";
+import { AsyncStorageLike, SstErrorKind } from "./Types"
+import { debug } from "./utils/logger";
 
 type Domain = Record<string, string>;
+type ErrorReporter = (msg: string, fn: string, kind: SstErrorKind) => void;
 
 let AsyncStorage: AsyncStorageLike | null = null;
 export function setAsyncStorage(adapter: AsyncStorageLike) {
     AsyncStorage = adapter;
+}
+
+let reportError: ErrorReporter = () => {};
+export function setErrorReporter(reporter: ErrorReporter) {
+    reportError = reporter;
 }
 
 const memory = new Map<string, string>();
@@ -21,7 +27,7 @@ async function getItem(key: string): Promise<string | null> {
     }
     catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        Sst.sendError(`DataLayer.getItem failed for key "${key}": ${error.message}`, "DataLayer.getItem", "SerializationError");
+        reportError(`DataLayer.getItem failed for key "${key}": ${error.message}`, "DataLayer.getItem", "serializationError");
         throw error;
     }
 }
@@ -39,7 +45,7 @@ async function setItem(key: string, value: string): Promise<void> {
     }
     catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        Sst.sendError(`DataLayer.setItem failed for key "${key}": ${error.message}`, "DataLayer.setItem", "SerializationError");
+        reportError(`DataLayer.setItem failed for key "${key}": ${error.message}`, "DataLayer.setItem", "serializationError");
         throw error;
     }
 }
@@ -52,7 +58,9 @@ export class DataLayer {
         if (!raw) return {};
         try {
             return JSON.parse(raw) as Domain;
-        } catch {
+        } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            reportError(`DataLayer.getDomain: corrupt storage, resetting: ${error.message}`, "DataLayer.getDomain", "serializationError");
             return {};
         }
     }
@@ -68,7 +76,9 @@ export class DataLayer {
             try {
                 out[k] = JSON.parse(raw)?.value;
             }
-            catch {}
+            catch (err) {
+                debug(`DataLayer.all: skipping corrupt entry for key "${k}"`, err);
+            }
         }
         return out;
     }
@@ -88,11 +98,9 @@ export class DataLayer {
             }
         }
         catch (err: unknown) {
-            let message = "Unknown error";
-            if (err instanceof Error) message = err.message;
-            else message = String(err);
-
-            Sst.sendError(`Sst.dataLayer.get failed for key "${key}": ${message}`, "Sst.dataLayer.get", "SerializationError");
+            const message = err instanceof Error ? err.message : String(err);
+            reportError(`Sst.dataLayer.get failed for key "${key}": ${message}`, "Sst.dataLayer.get", "serializationError");
+            throw err;
         }
     }
 
@@ -105,11 +113,9 @@ export class DataLayer {
             await this.setDomain(domain);
         }
         catch (err: unknown) {
-            let message = "Unknown error";
-            if (err instanceof Error) message = err.message;
-            else message = String(err);
-
-            Sst.sendError(`Sst.dataLayer.add failed for key "${key}": ${message}`, "Sst.dataLayer.add", "SerializationError");
+            const message = err instanceof Error ? err.message : String(err);
+            reportError(`Sst.dataLayer.add failed for key "${key}": ${message}`, "Sst.dataLayer.add", "serializationError");
+            throw err;
         }
     }
 
@@ -124,12 +130,9 @@ export class DataLayer {
             return true;
         }
         catch (err: unknown) {
-            let message = "Unknown error";
-            if (err instanceof Error) message = err.message;
-            else message = String(err);
-
-            Sst.sendError(`Sst.dataLayer.remove failed for key "${key}": ${message}`, "Sst.dataLayer.remove", "SerializationError");
-            return false;
+            const message = err instanceof Error ? err.message : String(err);
+            reportError(`Sst.dataLayer.remove failed for key "${key}": ${message}`, "Sst.dataLayer.remove", "serializationError");
+            throw err;
         }
     }
 

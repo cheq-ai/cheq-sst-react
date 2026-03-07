@@ -23,9 +23,7 @@ export abstract class Model {
     version: string = "1.0.0";
     protected modelType: ModelType = "STANDARD";
 
-    async get(_event: Event, _sst: { config: Config; userAgent?: string | null }): Promise<any> {
-        throw new Error("Model.get must be overridden");
-    }
+    abstract get(event: Event, sst: { config: Config; userAgent?: string | null }): Promise<any>;
 
     getType(): ModelType {
         return this.modelType;
@@ -173,7 +171,6 @@ export class DeviceDataModel extends Model {
     protected modelType: ModelType = "DEFAULT";
 
     async get(_event: Event, sst: { config: Config }): Promise<any> {
-        // Returns the same object you currently put in dataLayer.__mobileData
         return await getMobileData(sst.config);
     }
 }

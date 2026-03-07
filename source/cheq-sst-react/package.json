@@ -9,7 +9,7 @@
     "files": [
         "dist"
     ],
-    "sideEffects": false,
+    "sideEffects": true,
     "scripts": {
         "build": "npx tsup",
         "dev": "npx tsup --watch",

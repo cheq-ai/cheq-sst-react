@@ -1,6 +1,6 @@
-import { CachedEnv, Config, SstError, TrackEventResult } from "./Types";
+import { CachedEnv, Config, SstError, SstErrorKind, TrackEventResult } from "./Types";
 import { Event } from "./Models";
-import { DataLayer } from "./DataLayer";
+import { DataLayer, setErrorReporter } from "./DataLayer";
 import { Cookies, LocalStorage, SessionStorage, clearUUID, getUUID } from "./Storage";
 import { sendHttpPost, sendErrorBeacon } from "./platform/HTTP";
 import { getPlatform } from "./platform/env";
@@ -8,22 +8,22 @@ import { getLanguage, getPageTitle, getPageURL, getReferrer, getScreenInfo, getS
 import { debug, setDebug } from "./utils/logger";
 
 const SST_VERSION = "1.0.0";
-const SST_ORIGIN = "mobile";
+const SST_ORIGIN = "mobile"; // "mobile" should be used for all traffic from this SDK, including react web.
 let cachedEnv: CachedEnv | null = null;
 let resizeListenerRegistered = false;
 
-class SstConfigurationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "SstConfigurationError";
+// Lazily initialized on first use to avoid module-level side effects.
+let baseParams: Record<string, string> | null = null;
+function getBaseParams(): Record<string, string> {
+    if (!baseParams) {
+        baseParams = {
+            sstVersion: SST_VERSION,
+            sstOrigin: SST_ORIGIN,
+            sstPlatform: getPlatform()
+        };
     }
+    return baseParams;
 }
-
-const baseParams: Record<string, string> = {
-    sstVersion: SST_VERSION,
-    sstOrigin: SST_ORIGIN,
-    sstPlatform: getPlatform()
-};
 
 function registerResizeListenerOnce() {
     if (resizeListenerRegistered) return;
@@ -42,7 +42,7 @@ function getCachedEnv(screenEnabled: boolean): CachedEnv {
     cachedEnv = {
         language: getLanguage(),
         timezone: getTimezone(),
-        screen: screenEnabled ? getScreenInfo() : { width: null, height: null },
+        screen: screenEnabled ? getScreenInfo() : { width: null, height: null, orientation: null },
         screenDepth: getScreenDepth()
     };
 
@@ -67,18 +67,18 @@ function buildQuery(base: Record<string, string>, extra: Record<string, string>)
 
 function validateClientName(clientName: string): string {
     const response = (clientName ?? "").trim();
-    if (!response) throw new SstConfigurationError("Missing config: clientName");
-    if (!/^[A-Za-z0-9_-]+$/.test(response) || (response.length > 256)) throw new SstConfigurationError("Invalid config: clientName");
+    if (!response) throw SstError.invalidConfig("Missing config: clientName");
+    if (!/^[A-Za-z0-9_-]+$/.test(response) || (response.length > 256)) throw SstError.invalidConfig("Invalid config: clientName");
     return response;
 }
 
 function buildSstUrl(domain: string, clientName: string, params: Record<string, string>): string {
     const cleanDomain = (domain ?? "").trim();
-    if (!cleanDomain) throw new SstConfigurationError("Missing config: domain");
+    if (!cleanDomain) throw SstError.invalidConfig("Missing config: domain");
 
     const cleanClientName = validateClientName(clientName);
 
-    const qs = buildQuery(baseParams, params);
+    const qs = buildQuery(getBaseParams(), params);
     return new URL(`https://${cleanDomain}/pc/${cleanClientName}/sst?${qs}`).toString();
 }
 
@@ -95,6 +95,9 @@ export const Sst = (() => {
     const localStorageStore = new LocalStorage();
     const sessionStorageStore = new SessionStorage();
 
+    // Wire DataLayer error reporting back to Sst.sendError, breaking the circular import.
+    setErrorReporter((msg, fn, kind) => { sendError(msg, fn, kind).catch((e) => { debug("sendError failed", e); }); });
+
     function getUA() {
         return config?.virtualBrowser.userAgent ?? userAgent ?? null;
     }
@@ -106,7 +109,7 @@ export const Sst = (() => {
         }
     }
 
-    async function sendError(msg: string, fn: string, errorName: string) {
+    async function sendError(msg: string, fn: string, kind: SstErrorKind) {
         if (!config) return false;
 
         let safeClientName: string;
@@ -123,7 +126,7 @@ export const Sst = (() => {
             fn: truncate(fn, 256),
             client: truncate(safeClientName, 256),
             publishPath: truncate(config.publishPath, 256),
-            errorName: truncate(errorName, 256),
+            errorName: truncate(kind, 256),
         });
 
         const referrer = buildSstUrl(config.domain, safeClientName, {});
@@ -146,11 +149,8 @@ export const Sst = (() => {
                 debug("Configured");
             }
             catch(err) {
-                config = null;
                 const error = err as Error;
-                sendError(error.message, "Invalid config: unable to configure SST", "SstConfigurationError");
-
-                if (next.debug) console.error(error);
+                console.error("[CHEQ SST] Invalid config: unable to configure SST");
                 throw error;
             }
         },
@@ -240,6 +240,7 @@ export const Sst = (() => {
             const virtualBrowser: Record<string, any> = {};
             virtualBrowser.height = virtualBrowser.screenHeight = screen.height;
             virtualBrowser.width = virtualBrowser.screenWidth = screen.width;
+            if (screen.orientation) virtualBrowser.screenOrientation = screen.orientation;
             if (screen_depth) virtualBrowser.screenDepth = screen_depth;
             if (page_url) virtualBrowser.page = page_url;
             if (page_title) virtualBrowser.title = page_title;
@@ -274,7 +275,7 @@ export const Sst = (() => {
             try {
                 jsonString = JSON.stringify(sstData);
             } catch (e: any) {
-                await sendError(String(e?.message ?? e), "Sst.trackEvent", "SerializationError");
+                await sendError(String(e?.message ?? e), "Sst.trackEvent", "serializationError");
                 return null;
             }
 
@@ -285,11 +286,10 @@ export const Sst = (() => {
                     userAgent: getUA(),
                     url,
                     jsonString,
-                    debug: config.debug,
                 });
                 return { url, requestBody: jsonString, statusCode, userAgent: getUA() };
             } catch (e: any) {
-                await sendError(String(e?.message ?? e), "Sst.trackEvent", "NetworkError");
+                await sendError(String(e?.message ?? e), "Sst.trackEvent", "networkError");
                 return null;
             }
         },

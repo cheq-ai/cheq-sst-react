@@ -34,7 +34,7 @@ export function getScreenInfo(): ScreenInfo {
 
 export function getPageURL(): string {
     if (typeof window === "undefined") return "";
-    return typeof window !== "undefined" ? window.location?.href : "";
+    return window.location?.href ?? "";
 }
 
 export function getPageTitle(): string {

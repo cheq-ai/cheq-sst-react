@@ -68,11 +68,6 @@ export class VirtualBrowser {
     }
 }
 
-export type DeviceModelConfig = {
-    screenEnabled: boolean;
-    osEnabled: boolean;
-    idEnabled: boolean;
-};
 
 export type ConfigInit = {
     domain?: string;
@@ -117,9 +112,23 @@ export class Config {
     }
 }
 
+export type SstErrorKind = "notConfigured" | "invalidConfig" | "networkError" | "serializationError";
+
 export class SstError extends Error {
+    readonly kind: SstErrorKind;
+
+    constructor(message: string, kind: SstErrorKind) {
+        super(message);
+        this.name = "SstError";
+        this.kind = kind;
+    }
+
     static notConfigured() {
-        return new SstError("Sst not configured. Call Sst.configure() first.");
+        return new SstError("Sst not configured. Call Sst.configure() first.", "notConfigured");
+    }
+
+    static invalidConfig(message: string) {
+        return new SstError(message, "invalidConfig");
     }
 }
 
@@ -131,14 +140,13 @@ export type AsyncStorageLike = {
 export type CachedEnv = {
     language: string | null;
     timezone: string | null;
-    screen: { width: number | null; height: number | null };
+    screen: ScreenInfo;
     screenDepth: number | null;
 };
 
 export type SendHttpPostArgs = {
     userAgent?: string | null;
     url: string;
-    debug?: boolean;
     jsonString: string;
     timeoutMs?: number;
     onFailedRequest?: (args: { name: string; body: unknown; error?: unknown }) => void;
@@ -148,7 +156,6 @@ export type SendErrorArgs = {
     userAgent?: string | null;
     url: string;
     referrer: string;
-    debug?: boolean;
 };
 
 export type ATTStatus = "authorized" | "denied" | "restricted" | "notDetermined" | "unavailable";

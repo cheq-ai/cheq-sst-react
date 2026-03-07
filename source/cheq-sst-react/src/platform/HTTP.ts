@@ -46,6 +46,7 @@ async function sendFetchPost(args: SendHttpPostArgs): Promise<Response | undefin
         const name = (error as { name?: string } | null)?.name === "TimeoutError" ? "SST request timeout" : "SST request failed";
         debug("Fetch request failed", { url, error });
         onFailedRequest?.({ name, body: parsedBody, error });
+        throw error;
     }
 }
 
@@ -59,6 +60,7 @@ function sendBeaconJson(url: string, jsonString: string): boolean {
         body: jsonString
     });
 
+    // text/plain is intentional: application/json triggers a CORS preflight that sendBeacon cannot handle.
     const blob = new Blob([jsonString], { type: "text/plain;charset=UTF-8" });
     return navigator.sendBeacon(url, blob);
 }
@@ -68,7 +70,8 @@ export async function sendHttpPost(args: SendHttpPostArgs): Promise<number | nul
     const beaconOk = sendBeaconJson(url, jsonString);
     if (beaconOk) {
         debug("sendBeacon queued");
-        // sendBeacon doesn't give status codes; we treat “queued” as success.
+        // sendBeacon queued successfully. Note: onFailedRequest and timeoutMs only apply
+        // to the fetch fallback below -- sendBeacon provides no status code or error callback.
         return 204;
     }
 

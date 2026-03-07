@@ -40,7 +40,7 @@ export async function sendHttpPost({ userAgent, url, jsonString }: SendHttpPostA
     }
     catch (error) {
         debug("Request failed", { url, error });
-        return null;
+        throw error;
     }
 }
 
@@ -50,7 +50,11 @@ export async function sendErrorBeacon({ userAgent, url, referrer }: SendErrorArg
 
     try {
         debug("Error beacon", { url, headers });
-        await fetch(url, { method: "GET", headers });
+        const res = await fetch(url, { method: "GET", headers });
+        if (!res.ok) {
+            debug("Error beacon returned non-OK status", { url, status: res.status });
+            return false;
+        }
         return true;
     }
     catch (error) {
