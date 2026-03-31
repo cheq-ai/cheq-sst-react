@@ -1,0 +1,40 @@
+{
+    "name": "cheq-sst-react",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "react-native": "./dist/index.js",
+    "files": [
+        "dist"
+    ],
+    "sideEffects": true,
+    "scripts": {
+        "build": "npx tsup",
+        "dev": "npx tsup --watch",
+        "prepare": "npm run build"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "react-native": "./dist/index.native.js",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "default": "./dist/index.js"
+        }
+    },
+    "peerDependencies": {
+        "react": ">=17"
+    },
+    "devDependencies": {
+        "@types/node": "^25.0.10",
+        "tsup": "^8.5.1",
+        "typescript": "^5.9.3"
+    },
+    "optionalDependencies": {
+        "expo-tracking-transparency": "^6.0.8",
+        "react-native-device-info": "^15.0.1",
+        "react-native-localize": "^3.6.1"
+    }
+}
