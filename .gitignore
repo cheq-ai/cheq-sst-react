@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Lock files (using workspace root only)
+source/*/package-lock.json
+sample-app/*/package-lock.json
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# NPM pack output
+*.tgz
