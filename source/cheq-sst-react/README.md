@@ -184,7 +184,7 @@ npm install react-native-device-info react-native-localize expo-tracking-transpa
 
 ## License
 
-Proprietary - CHEQ AI Technologies Ltd.
+Apache 2.0 - See [LICENSE](https://github.com/cheq-ai/cheq-sst-react/blob/master/LICENSE) for details.
 
 ## Support
 
