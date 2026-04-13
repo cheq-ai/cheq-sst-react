@@ -1,10 +1,10 @@
 {
   "name": "cheq-sst-react-workspace",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "source/*",
-    "sample-app/**"
+    "sample-app/*"
   ],
   "scripts": {
     "clean:root": "rm -rf node_modules package-lock.json",
