@@ -1,6 +1,6 @@
 {
     "name": "@cheq.ai/cheq-sst-react",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "CHEQ Server-Side Tagging SDK for React and React Native applications",
     "author": "CHEQ AI Technologies <tms+npm@cheq.ai>",
     "license": "Apache-2.0",

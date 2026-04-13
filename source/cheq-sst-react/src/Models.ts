@@ -2,7 +2,7 @@ import type { Config, EventInit } from "./Types";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "./Info";
 import { getMobileData } from "./platform/mobileData";
 
-const MODELS_VERSION = "0.1.0";
+const MODELS_VERSION = "0.1.1";
 export class Event {
     readonly name: string;
     readonly data: Record<string, unknown>;
