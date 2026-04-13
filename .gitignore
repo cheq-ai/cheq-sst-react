@@ -1,25 +1,30 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# expo
-.expo/
-
-# dependencies
+# Dependencies
 node_modules/
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Build outputs
+dist/
+source/cheq-sst-react/README.md
 
-# macOS
+# Lock files (using workspace root only)
+source/*/package-lock.json
+sample-app/*/package-lock.json
+
+# OS files
 .DS_Store
-*.pem
 
-# local env files
-.env*.local
+# Logs
+*.log
+npm-debug.log*
 
-# typescript
-*.tsbuildinfo
+# Environment
+.env
+.env.local
 
-# claude
-.claude/settings.local.json
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# NPM pack output
+*.tgz
