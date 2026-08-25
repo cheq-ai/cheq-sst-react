@@ -1,6 +1,6 @@
 {
   "name": "cheq-sst-react-workspace",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "workspaces": [
     "source/*",
@@ -16,11 +16,12 @@
     "start": "npm run build && npm --prefix sample-app/react-sst-demo run start",
     "start:android": "npm run build && npm --prefix sample-app/react-sst-demo run android",
     "start:ios": "npm run build && npm --prefix sample-app/react-sst-demo run ios",
-    "start:web": "npm run build && npm --prefix sample-app/react-sst-demo run web"
+    "start:web": "npm run build && npm --prefix sample-app/react-sst-demo run web",
+    "test": "npm -w source/cheq-sst-react run test"
   },
   "overrides": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "fast-xml-parser": "^5.3.3"
   },
   "devDependencies": {
