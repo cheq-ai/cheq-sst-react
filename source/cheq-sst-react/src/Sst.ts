@@ -7,7 +7,7 @@ import { getPlatform } from "./platform/env";
 import { getLanguage, getPageTitle, getPageURL, getReferrer, getScreenInfo, getScreenDepth, getTimezone } from "./platform/virtualBrowser";
 import { debug, setDebug } from "./utils/logger";
 
-const SST_VERSION = "0.1.1";
+const SST_VERSION = "1.0.0";
 const SST_ORIGIN = "mobile"; // "mobile" should be used for all traffic from this SDK, including react web.
 let cachedEnv: CachedEnv | null = null;
 let resizeListenerRegistered = false;

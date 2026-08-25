@@ -1,12 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES2019",
-    "lib": ["ES2019", "DOM"],
+    "lib": [
+      "ES2019",
+      "DOM"
+    ],
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "module": "ESNext"
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "test"
+  ]
 }

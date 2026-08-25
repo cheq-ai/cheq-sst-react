@@ -87,15 +87,26 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Version Locations
 
-Update version in **ALL** of these places before releasing:
+Update the version in **ALL** of these places before releasing:
 
-1. `package.json` (root) - `"version"` field
-2. `source/cheq-sst-react/package.json` - `"version"` field
-3. `source/cheq-sst-react/src/Sst.ts` - `SST_VERSION` constant
-4. `source/cheq-sst-react/src/Info.ts` - `LIBRARY_VERSION` constant
-5. `source/cheq-sst-react/src/Models.ts` - `MODELS_VERSION` constant
-6. `sample-app/react-sst-demo/package.json` - `"version"` field
-7. `sample-app/react-sst-demo/app.json` - `"version"` field
+1. `source/cheq-sst-react/package.json` - `"version"` field (the published package)
+2. `package.json` (root) - `"version"` field
+3. `sample-app/react-sst-demo/package.json` - `"version"` field
+4. `sample-app/react-sst-demo/app.json` - `"version"` field
+
+`LIBRARY_VERSION` in `source/cheq-sst-react/src/Info.ts` is **not** hand-edited. It is injected at build
+time by tsup from the version in `source/cheq-sst-react/package.json` (see `tsup.config.ts`). The models
+payload versions (`Models.version` and each `Model`'s `version` in `source/cheq-sst-react/src/Models.ts`)
+derive from `LIBRARY_VERSION`, so they track the release automatically too.
+
+### Versions That Are NOT the Release Version
+
+`SST_VERSION` versions a payload contract, not the library. Leave it alone during a release; change it
+only when the contract actually changes.
+
+| Constant | File | Versions |
+|----------|------|----------|
+| `SST_VERSION` | `source/cheq-sst-react/src/Sst.ts` | The SST request contract, sent as `?sstVersion=`. |
 
 ## Release Process
 

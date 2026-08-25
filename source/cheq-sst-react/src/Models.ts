@@ -2,7 +2,6 @@ import type { Config, EventInit } from "./Types";
 import { LIBRARY_NAME, LIBRARY_VERSION } from "./Info";
 import { getMobileData } from "./platform/mobileData";
 
-const MODELS_VERSION = "0.1.1";
 export class Event {
     readonly name: string;
     readonly data: Record<string, unknown>;
@@ -20,7 +19,7 @@ type ModelType = "STANDARD" | "DEFAULT" | "REQUIRED";
 
 export abstract class Model {
     abstract key: string;
-    version: string = "1.0.0";
+    version: string = LIBRARY_VERSION;
     protected modelType: ModelType = "STANDARD";
 
     abstract get(event: Event, sst: { config: Config; userAgent?: string | null }): Promise<any>;
@@ -39,7 +38,6 @@ export abstract class Model {
  */
 export class CheqAdvertisingModel extends Model {
     key = "advertising";
-    version = "1.0.0";
     protected modelType: ModelType = "STANDARD";
 
     async get(): Promise<any> {
@@ -62,7 +60,7 @@ class LibraryModel extends Model {
 }
 
 export class Models {
-    static version: string = MODELS_VERSION;
+    static version: string = LIBRARY_VERSION;
 
     private models: Model[];
 
@@ -167,7 +165,6 @@ export class Models {
 
 export class DeviceDataModel extends Model {
     key = "deviceData";
-    version = "1.0.0";
     protected modelType: ModelType = "DEFAULT";
 
     async get(_event: Event, sst: { config: Config }): Promise<any> {
