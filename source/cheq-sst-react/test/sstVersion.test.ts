@@ -91,9 +91,30 @@ describe("sstVersion is present on the SST request URL", () => {
     it("is not clobbered by an event parameter of the same name", async () => {
         Sst.configure(new Config("testclient"));
 
-        await Sst.trackEvent(new Event("spoof", { parameters: { sstVersion: "9.9.9" } }));
+        await Sst.trackEvent(new Event("spoof", {
+            parameters: { sstVersion: "9.9.9", sstOrigin: "web", sstPlatform: "fake", orderId: "abc-123" },
+        }));
 
-        // The canonical value must still be the first `sstVersion` the collector reads.
-        expect(requestedUrl().searchParams.get("sstVersion")).toBe(EXPECTED_SST_VERSION);
+        const url = requestedUrl();
+        // getAll, not get: a spoofed value appended after the canonical one is still a
+        // duplicate, and anything reading the last occurrence would see the spoof.
+        expect(url.searchParams.getAll("sstVersion")).toEqual([EXPECTED_SST_VERSION]);
+        expect(url.searchParams.getAll("sstOrigin")).toEqual(["mobile"]);
+        expect(url.searchParams.getAll("sstPlatform")).toHaveLength(1);
+        expect(url.searchParams.get("sstPlatform")).not.toBe("fake");
+        // Non-reserved parameters are untouched.
+        expect(url.searchParams.get("orderId")).toBe("abc-123");
+    });
+
+    it("is not clobbered by a differently-cased event parameter", async () => {
+        Sst.configure(new Config("testclient"));
+
+        await Sst.trackEvent(new Event("spoof", { parameters: { sstversion: "9.9.9", SSTORIGIN: "web" } }));
+
+        const url = requestedUrl();
+        expect(url.searchParams.getAll("sstVersion")).toEqual([EXPECTED_SST_VERSION]);
+        // A collector that lowercases parameter names must not see the spoofed value at all.
+        expect(url.search.toLowerCase()).not.toContain("9.9.9");
+        expect(url.search.toLowerCase()).not.toContain("sstorigin=web");
     });
 });

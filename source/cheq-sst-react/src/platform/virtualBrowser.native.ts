@@ -1,6 +1,7 @@
 import { Dimensions } from "react-native";
 import { ScreenInfo } from "../Types";
 import { debug } from "../utils/logger"
+import { getExpoLocalization, getLocalize } from "./optionalModules";
 
 export function getScreenInfo(): ScreenInfo {
     const { width, height } = Dimensions.get("window");
@@ -11,39 +12,53 @@ export function getScreenInfo(): ScreenInfo {
     return { width: w, height: h, orientation };
 }
 export function getLanguage(): string {
-    try {
-        const RNLocalize = require("react-native-localize");
-        const locales = RNLocalize.getLocales();
-        return locales.length ? locales[0].languageTag : "";
-    }
-    catch(err) {
+    // Each source is tried only if it is actually installed, so a throw from one does not
+    // get misread as "not installed" and silently fall through to the other.
+    const localize = getLocalize();
+    if (localize) {
         try {
-            const expoLocalize = require("expo-localization");
-            const locales = expoLocalize.getLocales();
-            return locales.length ? locales[0].languageTag : "";
+            const tag = localize.getLocales()?.[0]?.languageTag;
+            if (tag) return tag;
+            debug("react-native-localize returned no languageTag");
         }
-        catch(err) {
-            debug('Unable to get language from RNLocalize or Expo Localization');
-        }
+        catch (error) { debug("react-native-localize getLocales failed", { error }); }
     }
+
+    const expoLocalize = getExpoLocalization();
+    if (expoLocalize) {
+        try {
+            const tag = expoLocalize.getLocales()?.[0]?.languageTag;
+            if (tag) return tag;
+            debug("expo-localization returned no languageTag");
+        }
+        catch (error) { debug("expo-localization getLocales failed", { error }); }
+    }
+
+    debug("Unable to get language from react-native-localize or expo-localization");
     return "";
 }
 export function getTimezone(): string {
-    try {
-        const RNLocalize = require("react-native-localize");
-        const timezone = RNLocalize.getTimeZone();
-        return timezone;
-    }
-    catch(err) {
+    const localize = getLocalize();
+    if (localize) {
         try {
-            const expoLocalize = require("expo-localization");
-            const timezone = expoLocalize.timezone;
-            return timezone;
+            const timezone = localize.getTimeZone();
+            if (timezone) return timezone;
+            debug("react-native-localize returned no timezone");
         }
-        catch(err) {
-            debug('Unable to get timezone from RNLocalize or Expo Localization');
-        }
+        catch (error) { debug("react-native-localize getTimeZone failed", { error }); }
     }
+
+    const expoLocalize = getExpoLocalization();
+    if (expoLocalize?.getCalendars) {
+        try {
+            const timeZone = expoLocalize.getCalendars()?.[0]?.timeZone;
+            if (timeZone) return timeZone;
+            debug("expo-localization returned no timeZone");
+        }
+        catch (error) { debug("expo-localization getCalendars failed", { error }); }
+    }
+
+    debug("Unable to get timezone from react-native-localize or expo-localization");
     return "";
 }
 export function getPageURL(): string {
