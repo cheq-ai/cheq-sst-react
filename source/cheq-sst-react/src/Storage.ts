@@ -144,6 +144,11 @@ export class SessionStorage extends SstStorage {
 }
 
 // ---- Memory-only "global" helpers (UUID etc.) ----
+/** No-op on web: the browser owns persistence, and nothing here outlives the page. */
+export function hydrateStorage(): Promise<void> {
+    return Promise.resolve();
+}
+
 export function getStorageItem(key: string): string | null {
     return memoryGlobalStorage.getItem(key);
 }

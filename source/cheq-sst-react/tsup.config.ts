@@ -21,7 +21,11 @@ export default defineConfig([
     // React Native build
     {
         entry: ["src/index.ts"],
-        format: ["esm"],
+        // cjs, not esm: `require` is undefined in ESM, so esbuild rewrites the optional
+        // `require("react-native-device-info")` calls in optionalModules.native.ts into
+        // `__require(...)`, which Metro cannot resolve statically -> "Requiring unknown
+        // module" at runtime. CJS keeps them as literal require() calls Metro can see.
+        format: ["cjs"],
         dts: false,
         outDir: "dist",
         outExtension: () => ({ js: ".native.js" }),

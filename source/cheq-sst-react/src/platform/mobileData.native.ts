@@ -2,33 +2,19 @@ import { NativeModules, Platform } from "react-native";
 import type { Config, ATTStatus } from "../Types";
 import { getScreenInfo } from "./virtualBrowser"
 import { debug } from "../utils/logger"
+import { getDeviceInfo, getExpoTrackingTransparency, getRNTrackingTransparency } from "./optionalModules"
 
 const OS_NAME_MAP: Record<string, string> = {
     android: "Android",
     ios: "iOS"
 };
 
-function getDeviceInfo() {
-    try { return require("react-native-device-info") as typeof import("react-native-device-info"); }
-    catch { return null; }
-}
-
 function getOSName(): string {
     return OS_NAME_MAP[Platform.OS] || Platform.OS;
 }
 
-function getExpoTrackingTransparency() {
-    try { return require("expo-tracking-transparency") as typeof import("expo-tracking-transparency"); }
-    catch { return null; }
-}
-
 function getNativeAdvertisingModule() {
     try { return NativeModules?.AdvertisingId; }
-    catch { return null; }
-}
-
-function getRNTrackingTransparency() {
-    try { return require("react-native-tracking-transparency") as Record<string, unknown>; }
     catch { return null; }
 }
 

@@ -85,14 +85,20 @@ Follow [Semantic Versioning](https://semver.org/):
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-### Version Locations
+### Setting the Version
 
-Update the version in **ALL** of these places before releasing:
+One command updates every version field:
 
-1. `source/cheq-sst-react/package.json` - `"version"` field (the published package)
-2. `package.json` (root) - `"version"` field
-3. `sample-app/react-sst-demo/package.json` - `"version"` field
-4. `sample-app/react-sst-demo/app.json` - `"version"` field
+```bash
+npm run set-version 0.1.3
+```
+
+It writes the three `package.json` files (the published package, the workspace root, and the
+demo app). `sample-app/react-sst-demo/app.config.js` derives its version from the demo's
+`package.json`, so there is nothing to edit there.
+
+The publish workflow runs `npm run verify-version` against the git tag and fails the build if
+any of them disagree, so a stale field cannot silently republish the previous version.
 
 `LIBRARY_VERSION` in `source/cheq-sst-react/src/Info.ts` is **not** hand-edited. It is injected at build
 time by tsup from the version in `source/cheq-sst-react/package.json` (see `tsup.config.ts`). The models
@@ -120,7 +126,9 @@ git flow release start <VERSION> && git flow release publish
 
 ### 2. Update Version Numbers
 
-Update version in all locations listed above under "Version Locations".
+```bash
+npm run set-version <VERSION>
+```
 
 ### 3. Commit and Push
 
