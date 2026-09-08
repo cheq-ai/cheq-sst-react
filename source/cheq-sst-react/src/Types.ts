@@ -112,7 +112,7 @@ export class Config {
     }
 }
 
-export type SstErrorKind = "notConfigured" | "invalidConfig" | "networkError" | "serializationError";
+export type SstErrorKind = "notConfigured" | "invalidConfig" | "networkError" | "serializationError" | "missingUserAgent" | "storageError";
 
 export class SstError extends Error {
     readonly kind: SstErrorKind;

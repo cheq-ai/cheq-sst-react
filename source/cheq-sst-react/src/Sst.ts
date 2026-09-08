@@ -1,7 +1,8 @@
 import { CachedEnv, Config, SstError, SstErrorKind, TrackEventResult } from "./Types";
 import { Event } from "./Models";
-import { DataLayer, setErrorReporter } from "./DataLayer";
-import { Cookies, LocalStorage, SessionStorage, clearUUID, getUUID } from "./Storage";
+import { DataLayer } from "./DataLayer";
+import { setErrorReporter } from "./utils/errorReporter";
+import { Cookies, LocalStorage, SessionStorage, clearUUID, getUUID, hydrateStorage } from "./Storage";
 import { sendHttpPost, sendErrorBeacon } from "./platform/HTTP";
 import { getPlatform } from "./platform/env";
 import { getLanguage, getPageTitle, getPageURL, getReferrer, getScreenInfo, getScreenDepth, getTimezone } from "./platform/virtualBrowser";
@@ -59,7 +60,14 @@ function buildQuery(base: Record<string, string>, extra: Record<string, string>)
     for (const [k, v] of Object.entries(base)) {
         sp.append(k, v);
     }
+    // Case-insensitive: a collector that lowercases parameter names would otherwise read a
+    // spoofed `sstversion` in preference to the real one.
+    const reserved = new Set(Object.keys(base).map(k => k.toLowerCase()));
     for (const [k, v] of Object.entries(extra)) {
+        if (reserved.has(k.toLowerCase())) {
+            debug(`buildQuery: ignoring reserved parameter "${k}"`);
+            continue;
+        }
         sp.append(k, v);
     }
     return sp.toString();
@@ -95,7 +103,7 @@ export const Sst = (() => {
     const localStorageStore = new LocalStorage();
     const sessionStorageStore = new SessionStorage();
 
-    // Wire DataLayer error reporting back to Sst.sendError, breaking the circular import.
+    // Wire error reporting back to Sst.sendError, breaking the circular import.
     setErrorReporter((msg, fn, kind) => { sendError(msg, fn, kind).catch((e) => { debug("sendError failed", e); }); });
 
     function getUA() {
@@ -139,9 +147,11 @@ export const Sst = (() => {
         localStorage: localStorageStore,
         sessionStorage: sessionStorageStore,
         sendError: sendError,
-        configure(next: Config) {
+        /** Throws on invalid config. Resolves once persisted storage is loaded (immediately on web). */
+        configure(next: Config): Promise<void> {
             setDebug(Boolean(next.debug));
             registerResizeListenerOnce();
+            const hydrated = hydrateStorage();
 
             try {
                 buildSstUrl(next.domain, next.clientName, {});
@@ -153,10 +163,13 @@ export const Sst = (() => {
                 console.error("[CHEQ SST] Invalid config: unable to configure SST");
                 throw error;
             }
+            return hydrated;
         },
+        /** The CHEQ UUID. Null on web, and on native until `configure()` resolves. */
         getCheqUuid() {
             return getUUID();
         },
+        /** Clears the stored CHEQ UUID; the collector issues a new one on the next request. */
         clearCheqUuid() {
             clearUUID();
         },
@@ -256,6 +269,8 @@ export const Sst = (() => {
                 debug("trackEvent error - missing config");
                 return null;
             }
+
+            await hydrateStorage();
 
             const sstData: Record<string, any> = {};
             sstData.events = [{ name: event.name, data: this.getEventData(event) }];

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { CheqAdvertisingModel, Config, Event, Models, Sst, getAdvertisingAuthorization, getAdvertisingId, getTrackingAuthorizationStatus, getUUID, clearUUID } from "cheq-sst-react";
+import { CheqAdvertisingModel, Config, Event, Models, Sst, getAdvertisingAuthorization, getAdvertisingId, getTrackingAuthorizationStatus, getUUID } from "cheq-sst-react";
 
 const account_name = "demoretail";
 
@@ -80,6 +80,9 @@ export default function App() {
 
             const payload = JSON.parse(res.requestBody);
             setLastSend(payload);
+            // The response carries the uuid, so re-read it -- otherwise the panel keeps
+            // showing whatever it held before the send (e.g. "—" right after a clear).
+            await refreshUuid();
             return payload;
         }
         catch (e) {
@@ -100,10 +103,7 @@ export default function App() {
                     int: 123,
                     float: 456.789,
                     boolean: true,
-                },
-                parameters: {
-                    ensDisableTracking: "user",
-                },
+                }
             })
         );
     };
@@ -233,7 +233,7 @@ export default function App() {
             <View style={styles.actions}>
                 <ButtonLink
                     onPress={async () => {
-                        clearUUID();
+                        Sst.clearCheqUuid();
                         setUuid(null);
                     }}
                     text="Clear CHEQ UUID"

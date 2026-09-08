@@ -1,8 +1,12 @@
-{
+// Dynamic Expo config: the version comes from package.json rather than being a fourth
+// place to hand-edit on every release.
+const { version } = require("./package.json");
+
+module.exports = {
   "expo": {
     "name": "Test",
     "slug": "Test",
-    "version": "0.1.2",
+    "version": version,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -33,4 +37,4 @@
     ],
     "jsEngine": "hermes"
   }
-}
+};

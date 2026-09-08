@@ -1,18 +1,13 @@
 import { convertToJSONString } from "./JSON";
-import { AsyncStorageLike, SstErrorKind } from "./Types"
+import { AsyncStorageLike } from "./Types"
 import { debug } from "./utils/logger";
+import { reportSstError } from "./utils/errorReporter";
 
 type Domain = Record<string, string>;
-type ErrorReporter = (msg: string, fn: string, kind: SstErrorKind) => void;
 
 let AsyncStorage: AsyncStorageLike | null = null;
 export function setAsyncStorage(adapter: AsyncStorageLike) {
     AsyncStorage = adapter;
-}
-
-let reportError: ErrorReporter = () => {};
-export function setErrorReporter(reporter: ErrorReporter) {
-    reportError = reporter;
 }
 
 const memory = new Map<string, string>();
@@ -27,7 +22,7 @@ async function getItem(key: string): Promise<string | null> {
     }
     catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        reportError(`DataLayer.getItem failed for key "${key}": ${error.message}`, "DataLayer.getItem", "serializationError");
+        reportSstError(`DataLayer.getItem failed for key "${key}": ${error.message}`, "DataLayer.getItem", "serializationError");
         throw error;
     }
 }
@@ -45,7 +40,7 @@ async function setItem(key: string, value: string): Promise<void> {
     }
     catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        reportError(`DataLayer.setItem failed for key "${key}": ${error.message}`, "DataLayer.setItem", "serializationError");
+        reportSstError(`DataLayer.setItem failed for key "${key}": ${error.message}`, "DataLayer.setItem", "serializationError");
         throw error;
     }
 }
@@ -60,7 +55,7 @@ export class DataLayer {
             return JSON.parse(raw) as Domain;
         } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
-            reportError(`DataLayer.getDomain: corrupt storage, resetting: ${error.message}`, "DataLayer.getDomain", "serializationError");
+            reportSstError(`DataLayer.getDomain: corrupt storage, resetting: ${error.message}`, "DataLayer.getDomain", "serializationError");
             return {};
         }
     }
@@ -99,7 +94,7 @@ export class DataLayer {
         }
         catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
-            reportError(`Sst.dataLayer.get failed for key "${key}": ${message}`, "Sst.dataLayer.get", "serializationError");
+            reportSstError(`Sst.dataLayer.get failed for key "${key}": ${message}`, "Sst.dataLayer.get", "serializationError");
             throw err;
         }
     }
@@ -114,7 +109,7 @@ export class DataLayer {
         }
         catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
-            reportError(`Sst.dataLayer.add failed for key "${key}": ${message}`, "Sst.dataLayer.add", "serializationError");
+            reportSstError(`Sst.dataLayer.add failed for key "${key}": ${message}`, "Sst.dataLayer.add", "serializationError");
             throw err;
         }
     }
@@ -131,7 +126,7 @@ export class DataLayer {
         }
         catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
-            reportError(`Sst.dataLayer.remove failed for key "${key}": ${message}`, "Sst.dataLayer.remove", "serializationError");
+            reportSstError(`Sst.dataLayer.remove failed for key "${key}": ${message}`, "Sst.dataLayer.remove", "serializationError");
             throw err;
         }
     }

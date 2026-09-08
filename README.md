@@ -145,10 +145,10 @@ const result = await Sst.trackEvent(event);
 
 | Method | Description |
 |--------|-------------|
-| `configure(config)` | Initialize SST with configuration |
+| `configure(config)` | Initialize SST with configuration. Returns a promise that resolves once persisted storage is loaded (immediately on web); `trackEvent` waits for it on its own |
 | `trackEvent(event)` | Send an event to SST |
-| `getCheqUuid()` | Get the current CHEQ UUID |
-| `clearCheqUuid()` | Clear the stored UUID |
+| `getCheqUuid()` | Get the current CHEQ UUID. Native only — returns `null` on web, where the browser owns the cookie. On native, `await Sst.configure(...)` first, or it is `null` until persisted storage has loaded |
+| `clearCheqUuid()` | Clear the stored UUID; the collector issues a new one on the next request. Native only |
 | `dataLayer` | Access the data layer API |
 | `cookies` | Access the cookies API |
 | `localStorage` | Access the localStorage API |
@@ -176,11 +176,27 @@ const result = await Sst.trackEvent(event);
 
 ## Optional Peer Dependencies
 
-For full React Native functionality, install these optional dependencies:
+These are not installed for you. Each is loaded lazily and skipped silently if absent,
+so install the ones matching the data you want collected.
 
 ```bash
-npm install react-native-device-info react-native-localize expo-tracking-transparency
+# Device model, manufacturer, app version, User-Agent
+npm install react-native-device-info
+
+# Timezone and locale
+npm install react-native-localize    # or, in Expo apps: expo-localization
+
+# iOS ATT status and advertising ID
+npm install expo-tracking-transparency          # Expo apps
+npm install react-native-tracking-transparency  # bare React Native apps
+
+# Persists the CHEQ UUID and storage values across app restarts.
+# Without it they are kept in memory only and reset on every launch. Any 1.x, 2.x or 3.x works.
+npm install @react-native-async-storage/async-storage
 ```
+
+Install **one** tracking-transparency package, not both — they are two bridges to the
+same iOS framework, and linking both puts two ATT native modules in one binary.
 
 ## License
 
