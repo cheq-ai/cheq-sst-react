@@ -1,6 +1,7 @@
 import type { SstErrorKind } from "../Types";
 
-export type ErrorReporter = (msg: string, fn: string, kind: SstErrorKind) => void;
+/** Return false to signal the report was dropped: a once-key is then not burned and may retry. */
+export type ErrorReporter = (msg: string, fn: string, kind: SstErrorKind) => boolean | void;
 
 // Injected by Sst so modules it imports can report errors without a circular import.
 let reportError: ErrorReporter = () => {};
@@ -17,6 +18,6 @@ export function reportSstError(msg: string, fn: string, kind: SstErrorKind) {
 /** For conditions that persist for the whole session; beaconing per event would flood. */
 export function reportSstErrorOnce(key: string, msg: string, fn: string, kind: SstErrorKind) {
     if (reportedOnce.has(key)) return;
+    if (reportError(msg, fn, kind) === false) return;
     reportedOnce.add(key);
-    reportError(msg, fn, kind);
 }

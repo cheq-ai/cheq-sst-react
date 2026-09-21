@@ -80,6 +80,16 @@ describe("native cold start", () => {
         expect(headers["Cookie"]).toBe(`uuid=${UUID}`);
     });
 
+    it("keeps device data but omits the namespace when the data layer is empty", async () => {
+        Sst.configure(new Config("testclient"));
+
+        await Sst.trackEvent(new Event("launch"));
+
+        const dataLayer = sentBody().dataLayer;
+        expect(dataLayer.digitalData).toBeUndefined();
+        expect(dataLayer.__mobileData).toBeDefined();
+    });
+
     it("exposes the identity through getCheqUuid() once configure() resolves", async () => {
         const ready = Sst.configure(new Config("testclient"));
 
