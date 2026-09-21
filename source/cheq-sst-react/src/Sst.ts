@@ -10,6 +10,7 @@ import { debug, setDebug } from "./utils/logger";
 
 const SST_VERSION = "1.0.0";
 const SST_ORIGIN = "mobile"; // "mobile" should be used for all traffic from this SDK, including react web.
+const MAX_PENDING_ERRORS = 20;
 let cachedEnv: CachedEnv | null = null;
 let resizeListenerRegistered = false;
 
@@ -104,7 +105,25 @@ export const Sst = (() => {
     const sessionStorageStore = new SessionStorage();
 
     // Wire error reporting back to Sst.sendError, breaking the circular import.
-    setErrorReporter((msg, fn, kind) => { sendError(msg, fn, kind).catch((e) => { debug("sendError failed", e); }); });
+    // sendError drops reports while config is null, so pre-configure reports are held
+    // (deduplicated, capped) and flushed once configure() sets config. Returning false on a
+    // capped drop keeps reportSstErrorOnce from burning its once-key on an undelivered report.
+    const pendingErrors: Array<[string, string, SstErrorKind]> = [];
+    function beaconError(msg: string, fn: string, kind: SstErrorKind) {
+        sendError(msg, fn, kind).catch((e) => { debug("sendError failed", e); });
+    }
+    setErrorReporter((msg, fn, kind) => {
+        if (config) {
+            beaconError(msg, fn, kind);
+            return;
+        }
+        if (pendingErrors.some(([m, f, k]) => m === msg && f === fn && k === kind)) return;
+        if (pendingErrors.length >= MAX_PENDING_ERRORS) {
+            debug("dropping pre-configure error report", { msg, fn, kind });
+            return false;
+        }
+        pendingErrors.push([msg, fn, kind]);
+    });
 
     function getUA() {
         return config?.virtualBrowser.userAgent ?? userAgent ?? null;
@@ -157,6 +176,7 @@ export const Sst = (() => {
                 buildSstUrl(next.domain, next.clientName, {});
                 config = next;
                 debug("Configured");
+                for (const pending of pendingErrors.splice(0)) beaconError(...pending);
             }
             catch(err) {
                 const error = err as Error;
@@ -186,12 +206,18 @@ export const Sst = (() => {
             const dataLayerNs: string | undefined = config.dataLayerName;
             if (!dataLayerNs) return null;
 
-            const dataLayerValue: unknown = await dataLayer.all();
-            if (!dataLayerValue) return null;
-            if (Array.isArray(dataLayerValue) && (dataLayerValue.length === 0)) return null;
-            else if ((typeof dataLayerValue === 'object') && (Object.keys(dataLayerValue).length === 0)) return null;
+            // A read failure costs the data layer values, never the event or its device data.
+            let readFailed = false;
+            const dataLayerValue: unknown = await dataLayer.all().catch(() => { readFailed = true; return null; });
 
-            const response: Record<string, unknown> = { [dataLayerNs]: dataLayerValue };
+            // An empty data layer is not an error either: omit the namespace, keep the device data.
+            const hasValues = !readFailed
+                && !!dataLayerValue
+                && !(Array.isArray(dataLayerValue) && (dataLayerValue.length === 0))
+                && !((typeof dataLayerValue === 'object') && (Object.keys(dataLayerValue).length === 0));
+
+            const response: Record<string, unknown> = {};
+            if (hasValues) response[dataLayerNs] = dataLayerValue;
 
             // models
             await ensureUserAgent();
@@ -217,7 +243,7 @@ export const Sst = (() => {
                     response.__mobileData = mobileData;
                 }
             }
-            return response;
+            return Object.keys(response).length ? response : null;
         },
         getSettings() {
             if (!config) return null;

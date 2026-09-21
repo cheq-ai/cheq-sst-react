@@ -34,6 +34,17 @@ describe("errorReporter", () => {
         expect(reporter).toHaveBeenCalledTimes(2);
     });
 
+    it("does not burn a once-key when the reporter drops the report", () => {
+        reporter.mockReturnValueOnce(false);
+
+        mod.reportSstErrorOnce("k", "dropped", "fn", "storageError");
+        mod.reportSstErrorOnce("k", "delivered", "fn", "storageError");
+        mod.reportSstErrorOnce("k", "burned now", "fn", "storageError");
+
+        expect(reporter).toHaveBeenCalledTimes(2);
+        expect(reporter).toHaveBeenLastCalledWith("delivered", "fn", "storageError");
+    });
+
     it("is a no-op before a reporter is injected", async () => {
         vi.resetModules();
         const fresh = await import("../src/utils/errorReporter");

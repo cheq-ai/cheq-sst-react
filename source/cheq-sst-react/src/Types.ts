@@ -132,11 +132,6 @@ export class SstError extends Error {
     }
 }
 
-export type AsyncStorageLike = {
-    getItem(key: string): Promise<string | null>;
-    setItem(key: string, value: string): Promise<void>;
-};
-
 export type CachedEnv = {
     language: string | null;
     timezone: string | null;
