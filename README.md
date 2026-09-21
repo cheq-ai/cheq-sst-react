@@ -45,7 +45,10 @@ Sst.configure(new Config("your_client_name", {
 
 ## Data Layer
 
-The SDK provides a persistent data layer for storing event context:
+The SDK provides a persistent data layer for storing event context. Values survive app restarts:
+on web through `localStorage`, on React Native through `@react-native-async-storage/async-storage`
+(see [Optional Peer Dependencies](#optional-peer-dependencies); without it the data layer is
+memory-only and resets on every launch). It does not depend on `Sst.configure()` having run.
 
 ```javascript
 // Add values
@@ -60,6 +63,10 @@ const all = await Sst.dataLayer.all();
 
 // Clear
 await Sst.dataLayer.clear();
+
+// Persisted across launches
+const count = (await Sst.dataLayer.get("launch_count")) ?? 0;
+await Sst.dataLayer.add("launch_count", count + 1);
 ```
 
 ## Storage APIs
